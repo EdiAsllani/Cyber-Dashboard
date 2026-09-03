@@ -20,17 +20,38 @@ const FOG_COLOR = '#050505'
 const FOG_OPEN = { near: 60, far: 400 }
 /** Closed in, so the tunnel has no visible end and the room emerges from it. */
 const FOG_TIGHT = { near: 4, far: 34 }
+/**
+ * Opened back up for the den. The tunnel's fog is tight enough to swallow the
+ * back wall of a 10m room — the decoration on it would read as a grey smear —
+ * but it can only be relaxed *after* the dissolve has covered the tunnel exit,
+ * hence a second ramp rather than a wider first one.
+ */
+const FOG_ROOM = { near: 10, far: 80 }
 
 export function JourneyScene() {
   useRenderProbe('JourneyScene')
   const fog = useRef<Fog>(null)
 
   useFrame(() => {
-    const f = ramp(getProgress(), 0.38, 0.48)
+    const p = getProgress()
     const node = fog.current
     if (!node) return
-    node.near = THREE.MathUtils.lerp(FOG_OPEN.near, FOG_TIGHT.near, f)
-    node.far = THREE.MathUtils.lerp(FOG_OPEN.far, FOG_TIGHT.far, f)
+    // Two ramps on one fog node: open → tight for the tunnel, then tight →
+    // room once the den has materialized. Nesting the lerps keeps a single
+    // pair of writes, and the second ramp starting at 0.85 means it only ever
+    // acts on the already-tightened values.
+    const tunnel = ramp(p, 0.38, 0.48)
+    const room = ramp(p, 0.85, 0.97)
+    node.near = THREE.MathUtils.lerp(
+      THREE.MathUtils.lerp(FOG_OPEN.near, FOG_TIGHT.near, tunnel),
+      FOG_ROOM.near,
+      room,
+    )
+    node.far = THREE.MathUtils.lerp(
+      THREE.MathUtils.lerp(FOG_OPEN.far, FOG_TIGHT.far, tunnel),
+      FOG_ROOM.far,
+      room,
+    )
   })
 
   return (
