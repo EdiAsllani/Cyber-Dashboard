@@ -16,11 +16,14 @@
 html,
 body,
 #root {
-  height: 100%;
+  min-height: 100%;
   background: var(--void);
   color: var(--ghost);
   font-family: 'Rajdhani', system-ui, sans-serif;
-  overflow: hidden;
+  /* Vertical scroll is the journey's input device — only clamp the x axis.
+     One scroll pipeline (Lenis + ScrollTrigger): never set scroll-behavior. */
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
 }
 
 .canvas-wrap {
@@ -49,4 +52,11 @@ body,
 .hud .status {
   color: var(--ghost);
   opacity: 0.7;
+}
+
+/* The scroll length of the whole journey. Six viewports of travel maps to
+   progress 0..1; it holds no content and never takes pointer events. */
+.scroll-track {
+  height: 600svh;
+  pointer-events: none;
 }
