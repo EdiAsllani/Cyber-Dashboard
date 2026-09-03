@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { getProgress } from '../../state/journey'
 import { ramp } from '../../rig/acts'
 import { createDissolveMaterial } from '../materials/dissolveMaterial'
+import { useRenderProbe } from '../../ui/renderProbe'
 import type { Group, PointLight } from 'three'
 
 /**
@@ -21,6 +22,7 @@ const ROOM_H = 3.2
 const WALL = 0.2
 
 export function Act5DenShell() {
+  useRenderProbe('Act5DenShell')
   const group = useRef<Group>(null)
   const lamp = useRef<PointLight>(null)
   const deskLamp = useRef<PointLight>(null)

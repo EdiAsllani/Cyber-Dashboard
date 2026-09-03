@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { getProgress, useJourney } from '../state/journey'
 import { actWindow } from './acts'
+import { useRenderProbe } from '../ui/renderProbe'
 
 /**
  * The dive. One Catmull-Rom curve for position, a second for the look target,
@@ -48,6 +49,7 @@ export const LOOK = new THREE.CatmullRomCurve3([
 const DAMP_LAMBDA = 6
 
 export function CameraRig() {
+  useRenderProbe('CameraRig')
   const camera = useThree((s) => s.camera)
   const eased = useRef(getProgress())
   const pos = useRef(new THREE.Vector3())

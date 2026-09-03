@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { getProgress, useJourney } from '../../state/journey'
 import { ramp, smoothstep } from '../../rig/acts'
+import { useRenderProbe } from '../../ui/renderProbe'
 import type { Group, InstancedMesh, MeshBasicMaterial } from 'three'
 
 /**
@@ -78,6 +79,7 @@ function useStreaks() {
 }
 
 export function Act3Tunnel() {
+  useRenderProbe('Act3Tunnel')
   const mesh = useRef<InstancedMesh>(null)
   const rings = useRef<Group>(null)
   const quality = useJourney((s) => s.quality)

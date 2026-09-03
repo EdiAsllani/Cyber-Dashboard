@@ -15,6 +15,7 @@ import type { BloomEffect, ChromaticAberrationEffect, GlitchEffect } from 'postp
 import { getProgress, useJourney } from '../state/journey'
 import { actWindow } from '../rig/acts'
 import { composerHandle } from './composerHandle'
+import { useRenderProbe } from '../ui/renderProbe'
 
 /**
  * The look pass. Bloom is the backbone — the wall's filaments and every neon
@@ -33,6 +34,7 @@ const CONTACT_FROM = 0.26
 const CONTACT_TO = 0.44
 
 export function PostFX() {
+  useRenderProbe('PostFX')
   const quality = useJourney((s) => s.quality)
   const reducedMotion = useJourney((s) => s.reducedMotion)
 

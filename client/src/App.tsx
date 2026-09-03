@@ -1,62 +1,36 @@
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { subscribeProgress, useJourney, watchReducedMotion } from './state/journey'
+import { useJourney, watchReducedMotion } from './state/journey'
 import { useScrollRig } from './rig/useScrollRig'
-import { actAt } from './rig/acts'
 import { CameraRig } from './rig/CameraRig'
 import { PathHelper } from './rig/PathHelper'
 import { JourneyScene } from './scene/JourneyScene'
-import { DebugBridge } from './ui/DebugBridge'
 import { PostFX } from './fx/PostFX'
 import { QualityTiers } from './fx/QualityTiers'
+import { BootScreen } from './ui/BootScreen'
+import { Hud } from './ui/Hud'
 import { PierceFlash } from './ui/PierceFlash'
+import { DebugBridge } from './ui/DebugBridge'
+import { DebugPanel, DebugPerf } from './ui/DebugPanel'
 import { debug } from './ui/debugFlag'
-
-/** Progress readout driven by store.subscribe → DOM mutation. Zero re-renders. */
-function ScrollReadout() {
-  const ref = useRef<HTMLSpanElement>(null)
-  useEffect(
-    () =>
-      subscribeProgress((p) => {
-        const el = ref.current
-        if (!el) return
-        const { act, local } = actAt(p)
-        el.textContent = `T ${p.toFixed(3)} — ACT ${act.id} ${act.name} ${(local * 100).toFixed(0)}%`
-      }),
-    [],
-  )
-  return <span className="status" ref={ref} />
-}
+import { useRenderProbe } from './ui/renderProbe'
 
 export default function App() {
-  const [status, setStatus] = useState('LINKING…')
-  const mode = useJourney((s) => s.mode)
+  useRenderProbe('App')
   useScrollRig(debug)
-
   useEffect(watchReducedMotion, [])
-
-  // TODO(Task 7): BootScreen owns this gesture; auto-jack-in until it exists.
-  useEffect(() => {
-    useJourney.getState().jackIn()
-  }, [])
-
-  useEffect(() => {
-    const ctl = new AbortController()
-    fetch('/api/health', { signal: ctl.signal })
-      .then((r) => r.json())
-      .then((d: { db: boolean }) =>
-        setStatus(d.db ? 'LINK ESTABLISHED — DB BREACHED' : 'API UP — DB OFFLINE'),
-      )
-      .catch(() => setStatus('NO CARRIER'))
-    return () => ctl.abort()
-  }, [])
+  const reducedMotion = useJourney((s) => s.reducedMotion)
 
   return (
     <>
+      <BootScreen />
+
       <div className="canvas-wrap">
         <Canvas
           camera={{ position: [0, 1.6, 26], fov: 55, near: 0.1, far: 120 }}
           dpr={[1, 2]}
+          // The post chain's bloom and tone map soften edges enough; MSAA on a
+          // fullscreen procedural shader is cost for no visible gain.
           gl={{ antialias: false }}
         >
           <color attach="background" args={['#050505']} />
@@ -68,15 +42,20 @@ export default function App() {
           <QualityTiers />
           {debug && <PathHelper />}
           {debug && <DebugBridge />}
+          {debug && <DebugPerf />}
         </Canvas>
       </div>
+
       <PierceFlash />
-      <div className="hud">
-        <span className="title">CYBER-DASHBOARD // {mode.toUpperCase()}</span>
-        <span className="status">{status}</span>
-        <ScrollReadout />
-      </div>
-      <div className="scroll-track" aria-hidden />
+      <Hud />
+      {debug && <DebugPanel />}
+
+      {/* Provides the journey's scroll length. Holds no content. Reduced
+          motion gets a shorter track: same five acts, half the wheel work. */}
+      <div
+        className={`scroll-track${reducedMotion ? ' scroll-track--short' : ''}`}
+        aria-hidden
+      />
     </>
   )
 }

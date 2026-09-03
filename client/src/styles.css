@@ -5,6 +5,7 @@
   --hot-red: #ff003c;
   --blood: #880425;
   --ghost: #e8e8e8;
+  --netrunner: #03d8f3;
 }
 
 * {
@@ -31,34 +32,16 @@ body,
   inset: 0;
 }
 
-.hud {
-  position: fixed;
-  top: 1rem;
-  left: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 0.8rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  pointer-events: none;
-}
-
-.hud .title {
-  color: var(--hot-red);
-}
-
-.hud .status {
-  color: var(--ghost);
-  opacity: 0.7;
-}
-
 /* The scroll length of the whole journey. Six viewports of travel maps to
    progress 0..1; it holds no content and never takes pointer events. */
 .scroll-track {
   height: 600svh;
   pointer-events: none;
+}
+
+/* prefers-reduced-motion: the same journey over less travel. */
+.scroll-track--short {
+  height: 300svh;
 }
 
 /* Act 2 — the pierce. Sits above the canvas and below nothing: it washes the
@@ -73,4 +56,245 @@ body,
   background: radial-gradient(circle at 50% 45%, #ffffff 0%, #ffffff 14%, var(--hot-red) 46%, var(--blood) 78%, rgba(136, 4, 37, 0.55) 100%);
   mix-blend-mode: screen;
   will-change: opacity;
+}
+
+/* ─── HUD ──────────────────────────────────────────────────────────────── */
+
+.hud {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 900ms ease;
+}
+
+/* Settled in the den: recede so the room reads. */
+.hud--dim {
+  opacity: 0.2;
+}
+
+.hud__title {
+  position: relative;
+  color: var(--hot-red);
+}
+
+.hud__status {
+  color: var(--ghost);
+  opacity: 0.7;
+}
+
+/* Act-change glitch: two offset colour ghosts of the same text, sliced by
+   clip-path. Pure CSS — the data-text attribute carries the copy. */
+.hud__title--glitch::before,
+.hud__title--glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Base state is invisible. Without this the ghosts revert to opacity 1 when
+     the animation ends and a solid copy of the text stays welded over the
+     title — animations don't persist their last keyframe by default. */
+  opacity: 0;
+  clip-path: inset(0 0 100% 0);
+}
+
+.hud__title--glitch::before {
+  color: var(--netrunner);
+  animation: hud-slice-a 320ms steps(3, end) 1;
+}
+
+.hud__title--glitch::after {
+  color: var(--ghost);
+  animation: hud-slice-b 320ms steps(3, end) 1;
+}
+
+@keyframes hud-slice-a {
+  0% { transform: translateX(-3px); clip-path: inset(0 0 62% 0); opacity: 0.9; }
+  40% { transform: translateX(4px); clip-path: inset(48% 0 24% 0); opacity: 0.75; }
+  100% { transform: none; clip-path: inset(0 0 100% 0); opacity: 0; }
+}
+
+@keyframes hud-slice-b {
+  0% { transform: translateX(3px); clip-path: inset(56% 0 0 0); opacity: 0.8; }
+  40% { transform: translateX(-4px); clip-path: inset(18% 0 56% 0); opacity: 0.6; }
+  100% { transform: none; clip-path: inset(100% 0 0 0); opacity: 0; }
+}
+
+/* Journey progress: 2px rail on the left edge, scaled through a ref. */
+.hud__rail {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  width: 2px;
+  background: rgba(136, 4, 37, 0.25);
+  pointer-events: none;
+}
+
+.hud__rail span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--hot-red);
+  transform: scaleY(0);
+  transform-origin: top;
+  will-change: transform;
+}
+
+.hud__hint {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  z-index: 3;
+  translate: -50% 0;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.28em;
+  color: var(--ghost);
+  pointer-events: none;
+  transition: opacity 400ms ease;
+  will-change: opacity;
+}
+
+/* The pulse is on the child on purpose: a CSS animation on this element would
+   outrank the inline opacity the HUD writes through its ref. */
+.hud__hint span {
+  display: block;
+  animation: hint-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes hint-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.9; }
+}
+
+/* ─── Boot screen ──────────────────────────────────────────────────────── */
+
+.boot {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  background: var(--void);
+  opacity: 1;
+  transition: opacity 700ms ease;
+}
+
+.boot--leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.boot__panel {
+  width: min(46rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  border-left: 2px solid var(--blood);
+  padding-left: 1.25rem;
+}
+
+.boot__log {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: clamp(0.65rem, 1.6vw, 0.85rem);
+  letter-spacing: 0.08em;
+  color: var(--ghost);
+  min-height: 12rem;
+}
+
+.boot__line {
+  animation: boot-line-in 160ms ease-out 1;
+}
+
+/* The last line is the warning — flag it. */
+.boot__line:last-child {
+  color: var(--hot-red);
+}
+
+@keyframes boot-line-in {
+  from { opacity: 0; transform: translateX(-0.4rem); }
+  to { opacity: 1; transform: none; }
+}
+
+.boot__meter {
+  height: 2px;
+  background: rgba(136, 4, 37, 0.3);
+}
+
+.boot__meter span {
+  display: block;
+  height: 100%;
+  background: var(--hot-red);
+  transform-origin: left;
+  transition: transform 200ms linear;
+}
+
+.boot__jack {
+  align-self: flex-start;
+  padding: 0.6rem 1.4rem;
+  border: 1px solid var(--arasaka-red);
+  background: transparent;
+  color: var(--hot-red);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.95rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  cursor: pointer;
+  animation: jack-pulse 1.6s ease-in-out infinite;
+}
+
+.boot__jack:hover:not(:disabled) {
+  background: var(--arasaka-red);
+  color: var(--void);
+}
+
+.boot__jack:disabled {
+  border-color: var(--blood);
+  color: var(--blood);
+  cursor: progress;
+  animation: none;
+}
+
+@keyframes jack-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 0, 60, 0.5); }
+  50% { box-shadow: 0 0 1.6rem 0 rgba(255, 0, 60, 0.28); }
+}
+
+.boot__disclaimer {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  color: var(--ghost);
+  opacity: 0.4;
+}
+
+/* Reduced motion: keep every state change, drop the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .hud__hint span,
+  .boot__jack,
+  .boot__line,
+  .hud__title--glitch::before,
+  .hud__title--glitch::after {
+    animation: none;
+  }
+
+  .hud__title--glitch::before,
+  .hud__title--glitch::after {
+    content: none;
+  }
 }

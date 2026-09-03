@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { getProgress, useJourney } from '../../state/journey'
 import { actWindow } from '../../rig/acts'
 import { BlackwallMaterial } from '../materials/blackwallMaterial'
+import { useRenderProbe } from '../../ui/renderProbe'
 import type { Mesh, Points } from 'three'
 
 /**
@@ -45,6 +46,7 @@ function useDust() {
 }
 
 export function Act1Blackwall() {
+  useRenderProbe('Act1Blackwall')
   const wall = useRef<Mesh>(null)
   const dust = useRef<Points>(null)
   const quality = useJourney((s) => s.quality)

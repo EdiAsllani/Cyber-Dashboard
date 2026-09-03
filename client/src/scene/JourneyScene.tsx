@@ -6,6 +6,7 @@ import { ramp } from '../rig/acts'
 import { Act1Blackwall } from './acts/Act1Blackwall'
 import { Act3Tunnel } from './acts/Act3Tunnel'
 import { Act5DenShell } from './acts/Act5DenShell'
+import { useRenderProbe } from '../ui/renderProbe'
 import type { Fog } from 'three'
 
 /**
@@ -21,6 +22,7 @@ const FOG_OPEN = { near: 60, far: 400 }
 const FOG_TIGHT = { near: 4, far: 34 }
 
 export function JourneyScene() {
+  useRenderProbe('JourneyScene')
   const fog = useRef<Fog>(null)
 
   useFrame(() => {
