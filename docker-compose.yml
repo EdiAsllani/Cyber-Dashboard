@@ -1,0 +1,77 @@
+# CYBER-DASHBOARD — dev environment
+#
+# NOTE (Phase 0): this file is the blueprint. It becomes runnable in Phase 1,
+# when ./client and ./server are scaffolded with the Dockerfiles it references.
+# Image tags verified against docs/research/04-devops.md.
+#
+# Usage:  cp .env.example .env  &&  docker compose up --build --watch
+
+name: cyber-dashboard
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-netrunner}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-blackwall-dev}
+      POSTGRES_DB: ${POSTGRES_DB:-cyberdash}
+    ports:
+      - "5432:5432"
+    volumes:
+      # postgres 18+ image moved its VOLUME from /var/lib/postgresql/data
+      # to /var/lib/postgresql — mounting the old path loses data to an
+      # anonymous volume (see docs/research/04-devops.md §1)
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-netrunner} -d ${POSTGRES_DB:-cyberdash}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  server:
+    build:
+      context: ./server
+      target: dev              # dev stage runs `dotnet watch run`
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: "8080"
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+      DOTNET_WATCH_RESTART_ON_RUDE_EDIT: "true"
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=${POSTGRES_DB:-cyberdash};Username=${POSTGRES_USER:-netrunner};Password=${POSTGRES_PASSWORD:-change-me-blackwall-dev}"
+      GitHub__ClientId: ${GITHUB_CLIENT_ID:-}
+      GitHub__ClientSecret: ${GITHUB_CLIENT_SECRET:-}
+    ports:
+      - "5210:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    develop:
+      watch:
+        - action: sync
+          path: ./server
+          target: /app
+          ignore: ["bin/", "obj/"]
+        - action: rebuild
+          path: ./server/src/Api/Api.csproj   # package changes need a restore
+
+  client:
+    build:
+      context: ./client
+      target: dev              # dev stage runs `vite --host 0.0.0.0`
+    environment:
+      VITE_API_PROXY_TARGET: http://server:8080
+    ports:
+      - "5173:5173"
+    depends_on:
+      - server
+    develop:
+      watch:
+        - action: sync
+          path: ./client
+          target: /app
+          ignore: ["node_modules/", "dist/"]
+        - action: rebuild
+          path: ./client/package.json
+
+volumes:
+  pgdata:

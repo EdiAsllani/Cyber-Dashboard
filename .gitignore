@@ -1,0 +1,39 @@
+# --- .NET ---
+bin/
+obj/
+artifacts/
+*.user
+*.suo
+.vs/
+*.DotSettings.user
+
+# --- Node / Vite ---
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+
+# --- Env & secrets ---
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+appsettings.*.Local.json
+
+# --- Databases / volumes ---
+.pgdata/
+*.db
+*.db-shm
+*.db-wal
+
+# --- Logs ---
+*.log
+npm-debug.log*
+logs/
+
+# --- OS / editors ---
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
