@@ -10,6 +10,7 @@ import {
   screenNormal,
 } from '../scene/den/constants'
 import { useRenderProbe } from '../ui/renderProbe'
+import { debug } from '../ui/debugFlag'
 
 /**
  * The dive. One Catmull-Rom curve for position, a second for the look target,
@@ -118,6 +119,12 @@ export function CameraRig() {
   const target = useRef({ pos: new THREE.Vector3(), look: new THREE.Vector3() })
 
   useFrame((state, dt) => {
+    // Debug-only escape hatch: `__camLock` hands the camera to the console so
+    // a prop can be inspected from 20cm away. The rig is the only camera
+    // writer (D-10), which also means nothing else can look at anything —
+    // this is that hole, and it compiles out of a production bundle.
+    if (debug && (window as unknown as { __camLock?: boolean }).__camLock) return
+
     const p = getProgress()
     const { mode, reducedMotion, focused, arrived } = useJourney.getState()
 

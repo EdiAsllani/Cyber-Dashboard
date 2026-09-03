@@ -62,6 +62,19 @@ export function DebugBridge() {
         },
       },
       __gpuProbe: probe,
+      // Parks the camera by hand for close-up inspection; `__camUnlock()`
+      // hands it back to the rig. See the CameraRig comment.
+      __cam: (px: number, py: number, pz: number, tx = 0, ty = 0, tz = 0) => {
+        const w = window as unknown as { __camLock?: boolean }
+        w.__camLock = true
+        const cam = store.getState().camera
+        cam.position.set(px, py, pz)
+        cam.lookAt(tx, ty, tz)
+        return cam.position.toArray()
+      },
+      __camUnlock: () => {
+        ;(window as unknown as { __camLock?: boolean }).__camLock = false
+      },
       // Steps the frame loop by hand. The in-app browser only paints while its
       // pane is actually on screen, so requestAnimationFrame — and with it
       // every useFrame — sits at zero frames while a headless check is

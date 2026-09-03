@@ -8,6 +8,7 @@ import { useDenMaterials } from '../den/materials'
 import { useSceneryRaycast } from '../den/raycast'
 import { DenRoom } from '../den/DenRoom'
 import { Desk } from '../den/Desk'
+import { Props } from '../den/Props'
 import { useRenderProbe } from '../../ui/renderProbe'
 import type { Group, PointLight } from 'three'
 
@@ -80,6 +81,7 @@ export function Act5DenShell() {
       <group ref={group} position={[0, 0, ROOM.z]} visible={false}>
         <DenRoom mats={mats} />
         <Desk mats={mats} />
+        <Props mats={mats} />
       </group>
     </>
   )

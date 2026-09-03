@@ -34,6 +34,14 @@ export interface DenMaterials {
   keycap: THREE.MeshStandardMaterial
   /** Hot red slivers: keyboard underglow, DPI dot, seams on props. */
   underglow: THREE.MeshStandardMaterial
+  /** Prop metal — the Malorian's slide. Brighter and glossier than ducting. */
+  gunmetal: THREE.MeshStandardMaterial
+  /** The Malorian's gold accents (the wiki's black-and-gold finish). */
+  brass: THREE.MeshStandardMaterial
+  /** The airhypo's canister: the one cyan accent allowed on the desk. */
+  vial: THREE.MeshStandardMaterial
+  /** Mug ceramic, paper, plastic shards — matte and unremarkable on purpose. */
+  matte: THREE.MeshStandardMaterial
 }
 
 export function useDenMaterials(reveal: THREE.IUniform<number>): DenMaterials {
@@ -69,6 +77,33 @@ export function useDenMaterials(reveal: THREE.IUniform<number>): DenMaterials {
         },
         reveal,
       ),
+      // Lighter than a real gun's finish on purpose: the right half of the
+      // desk is well outside the desk lamp's reach, and at #2a2c30 the prop
+      // there was a black shape in a black room.
+      gunmetal: createDissolveMaterial(
+        { color: '#4a4e55', roughness: 0.32, metalness: 0.7 },
+        reveal,
+      ),
+      brass: createDissolveMaterial(
+        { color: '#8a6a2c', roughness: 0.32, metalness: 0.85 },
+        reveal,
+      ),
+      vial: createDissolveMaterial(
+        {
+          color: '#04212a',
+          emissive: new THREE.Color('#03d8f3'),
+          // Deliberately under the bloom threshold: the vial is a glow, not a
+          // light source, and the den's only non-red accent.
+          emissiveIntensity: 0.6,
+          roughness: 0.2,
+          metalness: 0.1,
+          transparent: true,
+          opacity: 0.72,
+          toneMapped: false,
+        },
+        reveal,
+      ),
+      matte: createDissolveMaterial({ color: '#20211f', roughness: 0.9, metalness: 0.05 }, reveal),
       screen: createDissolveMaterial(
         {
           color: '#050505',
