@@ -12,7 +12,6 @@ import {
   MONITOR_SIDES,
   MOUNT,
   MOUSE,
-  SCREEN_PROUD,
   type MonitorSpec,
 } from './constants'
 import { Strut } from './Strut'
@@ -106,16 +105,13 @@ function Mount({ mats }: { mats: DenMaterials }) {
   )
 }
 
-/** Bezel plus screen plane, yawed toward the seat. */
+/** Bezel only — the screen plane itself belongs to MonitorScreens. */
 function MonitorBody({ spec, mats }: { spec: MonitorSpec; mats: DenMaterials }) {
   const [w, h] = spec.screen
   return (
     <group position={spec.center as unknown as THREE.Vector3Tuple} rotation={[0, spec.yaw, 0]}>
       <mesh material={mats.desk}>
         <boxGeometry args={[w + BEZEL_PAD, h + BEZEL_PAD, BEZEL_DEPTH]} />
-      </mesh>
-      <mesh material={mats.screen} position={[0, 0, SCREEN_PROUD]}>
-        <planeGeometry args={[w, h]} />
       </mesh>
     </group>
   )

@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { getProgress } from '../../state/journey'
+import { getProgress, useJourney } from '../../state/journey'
 import { ramp } from '../../rig/acts'
 import { ROOM } from '../den/constants'
 import { useDenMaterials } from '../den/materials'
@@ -9,6 +9,7 @@ import { useSceneryRaycast } from '../den/raycast'
 import { DenRoom } from '../den/DenRoom'
 import { Desk } from '../den/Desk'
 import { Props } from '../den/Props'
+import { MonitorScreens, useMonitorScreens } from '../den/MonitorScreens'
 import { useRenderProbe } from '../../ui/renderProbe'
 import type { Group, PointLight } from 'three'
 
@@ -35,13 +36,22 @@ export function Act5DenShell() {
   // world-space field rather than mesh by mesh.
   const reveal = useMemo<THREE.IUniform<number>>(() => ({ value: 0 }), [])
   const mats = useDenMaterials(reveal)
+  const monitors = useMonitorScreens(reveal)
 
   useSceneryRaycast(group)
 
-  useFrame(() => {
+  useFrame((state) => {
     const p = getProgress()
+    const { mode, quality, reducedMotion } = useJourney.getState()
     reveal.value = ramp(p, 0.7, 0.85)
-    if (group.current) group.current.visible = p > 0.62
+    const visible = p > 0.62
+    if (group.current) group.current.visible = visible
+
+    // The screens keep painting while the room is on screen and stop dead
+    // when it isn't — hidden behind the tunnel, or behind the terminal
+    // overlay. A CanvasTexture upload is a megabyte a pop; there is no point
+    // paying it for pixels nobody can see.
+    monitors.tick(state.clock.elapsedTime, quality, visible && mode !== 'terminal', reducedMotion)
     // Lights stay mounted and are dimmed instead of hidden: three keys shader
     // programs on the visible light count, so toggling a light's visibility
     // would recompile every standard material mid-scroll.
@@ -82,6 +92,7 @@ export function Act5DenShell() {
         <DenRoom mats={mats} />
         <Desk mats={mats} />
         <Props mats={mats} />
+        <MonitorScreens screens={monitors.screens} />
       </group>
     </>
   )
