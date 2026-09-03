@@ -34,6 +34,8 @@ export interface DenMaterials {
   keycap: THREE.MeshStandardMaterial
   /** Hot red slivers: keyboard underglow, DPI dot, seams on props. */
   underglow: THREE.MeshStandardMaterial
+  /** The one live cable run. Its emissiveIntensity is pulsed by the act. */
+  cableHot: THREE.MeshStandardMaterial
   /** Prop metal — the Malorian's slide. Brighter and glossier than ducting. */
   gunmetal: THREE.MeshStandardMaterial
   /** The Malorian's gold accents (the wiki's black-and-gold finish). */
@@ -80,6 +82,16 @@ export function useDenMaterials(reveal: THREE.IUniform<number>): DenMaterials {
       // Lighter than a real gun's finish on purpose: the right half of the
       // desk is well outside the desk lamp's reach, and at #2a2c30 the prop
       // there was a black shape in a black room.
+      cableHot: createDissolveMaterial(
+        {
+          color: '#120004',
+          emissive: new THREE.Color('#ff003c'),
+          emissiveIntensity: 1.3,
+          roughness: 0.5,
+          toneMapped: false,
+        },
+        reveal,
+      ),
       gunmetal: createDissolveMaterial(
         { color: '#4a4e55', roughness: 0.32, metalness: 0.7 },
         reveal,

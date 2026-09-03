@@ -28,8 +28,18 @@ export function createDissolveMaterial(
       'varying vec3 vDissolveWorld;\n' +
       shader.vertexShader.replace(
         '#include <begin_vertex>',
+        // The instanced branch is not optional. three applies `instanceMatrix`
+        // later, in <project_vertex>, so `modelMatrix * transformed` alone
+        // gives every instance of a mesh the same world position — and
+        // therefore the same noise sample. A 62-key keyboard or a rack of 72
+        // LEDs would then reveal as one block at a single threshold instead of
+        // burning in with the surface it sits on.
         `#include <begin_vertex>
-  vDissolveWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;`,
+  #ifdef USE_INSTANCING
+    vDissolveWorld = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
+  #else
+    vDissolveWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;
+  #endif`,
       )
 
     shader.fragmentShader =
