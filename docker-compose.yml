@@ -1,7 +1,4 @@
 # CYBER-DASHBOARD — dev environment
-#
-# NOTE (Phase 0): this file is the blueprint. It becomes runnable in Phase 1,
-# when ./client and ./server are scaffolded with the Dockerfiles it references.
 # Image tags verified against docs/research/04-devops.md.
 #
 # Usage:  cp .env.example .env  &&  docker compose up --build --watch

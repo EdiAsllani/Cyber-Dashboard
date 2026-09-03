@@ -2,7 +2,7 @@
 
 > A scroll-driven 3D dashboard styled after Cyberpunk 2077 — the Blackwall, Arasaka red/black, and in-world terminals. You scroll *through* the Blackwall, land in a netrunner's den, and run your life from the monitors on the desk.
 
-**Status: `PHASE 0 — RESEARCH & ARCHITECTURE`** — no app code yet. Start at [docs/ROADMAP.md](docs/ROADMAP.md).
+**Status: `PHASE 1 — SKELETON RUNNING`** — stack boots via compose (cube + API + DB, hot reload). Next up: the Blackwall journey ([docs/ROADMAP.md](docs/ROADMAP.md)).
 
 ---
 
@@ -48,8 +48,6 @@ Clicking a monitor dollies the camera into the screen and boots a terminal:
 ```
 
 ## Running
-
-> Not functional until Phase 1 scaffolding lands.
 
 ```bash
 cp .env.example .env   # then fill in GitHub OAuth credentials

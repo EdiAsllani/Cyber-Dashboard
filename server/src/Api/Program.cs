@@ -23,6 +23,7 @@ app.MapGet("/api/health", async (AppDbContext db, CancellationToken ct) =>
     {
         status = dbUp ? "breached" : "blackwall-holding",
         db = dbUp,
+        phase = 1,
         env = app.Environment.EnvironmentName,
     });
 });

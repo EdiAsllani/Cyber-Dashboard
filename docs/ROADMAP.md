@@ -5,9 +5,9 @@ Phases are sized to end in something visibly working. Each has acceptance criter
 ## Phase 0 — Research & architecture ✅ (2026-09-03)
 Deep research (docs/research/), architecture (ARCHITECTURE.md), decision log, repo bootstrap (compose blueprint, env template, gitignore).
 
-## Phase 1 — Skeleton that runs
+## Phase 1 — Skeleton that runs ✅ (2026-09-03)
 Scaffold `client/` (Vite + React + TS + R3F) and `server/` (ASP.NET Core 10 minimal API + EF Core + Npgsql), Dockerfiles with `dev` targets, wire compose + compose watch, Vite proxy `/api` → server.
-**Accept:** `docker compose up --build --watch` → spinning red wireframe cube at :5173, `GET /api/health` returns `{ status: "breached" }` through the proxy, EF migration applies to Postgres on boot, hot reload works on both sides.
+**Accept (all verified):** `docker compose up --build --watch` → spinning red wireframe cube at :5173, `GET /api/health` returns `{ status: "breached", db: true }` through the proxy, EF `InitialCreate` migration applies to Postgres on boot, hot reload verified on both sides (client HMR without reload; server restart ≈5s).
 
 ## Phase 2 — The Blackwall journey
 Scroll rig (Lenis + ScrollTrigger → zustand progress), Act 1 Blackwall shader plane (FBM noise, red bands, filaments), Act 2 contact spike (Glitch/CA ramp), Act 3 instanced data tunnel, Act 4 dissolve into a placeholder room shell, postFX chain with per-act presets, boot/loading screen.
