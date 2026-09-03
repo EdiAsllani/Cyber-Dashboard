@@ -82,6 +82,14 @@ body,
   opacity: 0.2;
 }
 
+/* Terminal mode: the CRT overlay owns the screen. `visibility` is not
+   redundant with the zero opacity — the scroll hint's opacity is an inline
+   style written through a ref, and inline styles outrank a class. */
+.hud--hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
 .hud__title {
   position: relative;
   color: var(--hot-red);

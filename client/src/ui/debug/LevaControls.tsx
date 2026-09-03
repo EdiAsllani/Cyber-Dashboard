@@ -1,5 +1,5 @@
 import { useControls } from 'leva'
-import { useJourney, type Quality } from '../../state/journey'
+import { useJourney, type Mode, type MonitorSide, type Quality } from '../../state/journey'
 
 /**
  * Lives in its own lazily-imported module so `useControls` is only ever called
@@ -13,6 +13,7 @@ import { useJourney, type Quality } from '../../state/journey'
 export default function LevaControls() {
   const quality = useJourney((s) => s.quality)
   const reducedMotion = useJourney((s) => s.reducedMotion)
+  const mode = useJourney((s) => s.mode)
 
   useControls(
     'JOURNEY',
@@ -39,6 +40,27 @@ export default function LevaControls() {
         value: reducedMotion,
         onChange: (v: boolean, _path: string, ctx: { initial?: boolean }) => {
           if (!ctx.initial) useJourney.setState({ reducedMotion: v })
+        },
+      },
+      // Bypasses the mode guards on purpose: the point is to inspect a mode
+      // without having to reach it through the journey. `focused` has to be
+      // set alongside it or the terminal mode has no monitor to zoom at.
+      mode: {
+        value: mode,
+        options: ['boot', 'journey', 'den', 'terminal'] satisfies Mode[],
+        onChange: (m: Mode, _path: string, ctx: { initial?: boolean }) => {
+          if (ctx.initial) return
+          const focused: MonitorSide | null = m === 'terminal' ? 'left' : null
+          useJourney.setState({ mode: m, focused, arrived: false })
+        },
+      },
+      focused: {
+        value: 'left',
+        options: ['left', 'right'] satisfies MonitorSide[],
+        onChange: (side: MonitorSide, _path: string, ctx: { initial?: boolean }) => {
+          if (ctx.initial) return
+          if (useJourney.getState().mode !== 'terminal') return
+          useJourney.setState({ focused: side, arrived: false })
         },
       },
     },

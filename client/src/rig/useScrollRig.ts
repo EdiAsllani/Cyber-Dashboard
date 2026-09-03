@@ -57,13 +57,17 @@ export function useScrollRig(debug = false): void {
     // which is exactly the duplicate-smoother trap.
   }, { dependencies: [reducedMotion, debug], revertOnUpdate: true })
 
-  // Scroll lock while the boot screen is up: no peeking at the wall before
-  // JACK IN. Also guarantees the journey always starts from t=0.
+  // Scroll lock, shared by two situations that must not be conflated:
+  //  - boot: no peeking at the wall before JACK IN, and the journey must start
+  //    from t=0, so the document is also rewound.
+  //  - terminal: the overlay owns the screen and a stray wheel event would
+  //    otherwise scroll the den out from under it. Rewinding here would throw
+  //    the whole journey back to the void the moment a monitor is opened.
   useEffect(() => {
-    const locked = mode === 'boot'
+    const locked = mode === 'boot' || mode === 'terminal'
     const lenis = lenisRef.current
     if (locked) {
-      window.scrollTo(0, 0)
+      if (mode === 'boot') window.scrollTo(0, 0)
       document.body.style.overflow = 'hidden'
       lenis?.stop()
     } else {

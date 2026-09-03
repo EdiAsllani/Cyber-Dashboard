@@ -30,7 +30,7 @@ function useActName(): string {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  if (mode === 'den') return 'CONNECTION STABLE // THE DEN'
+  if (mode === 'den' || mode === 'terminal') return 'CONNECTION STABLE // THE DEN'
   return `CYBER-DASHBOARD // ${ACTS.find((a) => a.id === id)?.name ?? ''}`
 }
 
@@ -78,24 +78,31 @@ export function Hud() {
 
   // Settling into the den: let the HUD recede so the room reads.
   useEffect(() => {
-    if (mode !== 'den') {
+    if (mode !== 'den' && mode !== 'terminal') {
       setDim(false)
       return
     }
+    if (mode === 'terminal') return
     const t = window.setTimeout(() => setDim(true), DEN_DIM_MS)
     return () => window.clearTimeout(t)
   }, [mode])
 
+  // Terminal mode: the CRT overlay owns the screen, so the HUD steps aside.
+  // Hidden by class rather than unmounted — the rail's scaleY lives in an
+  // inline style written through a ref, and a remounted element would come
+  // back at scaleY(0) until the next scroll event moved it again.
+  const hidden = mode === 'terminal'
+
   return (
     <>
-      <div className={`hud${dim ? ' hud--dim' : ''}`}>
+      <div className={`hud${dim ? ' hud--dim' : ''}${hidden ? ' hud--hidden' : ''}`}>
         <span className="hud__title hud__title--glitch" ref={titleRef} data-text={title}>
           {title}
         </span>
         <span className="hud__status">{status}</span>
       </div>
 
-      <div className="hud__rail" aria-hidden>
+      <div className={`hud__rail${hidden ? ' hud--hidden' : ''}`} aria-hidden>
         <span ref={line} />
       </div>
 
@@ -103,7 +110,7 @@ export function Hud() {
           above inline styles in the cascade, so animating opacity here would
           silently override the ref-driven hide and the hint would never go
           away. */}
-      <div className="hud__hint" ref={hint} aria-hidden>
+      <div className={`hud__hint${hidden ? ' hud--hidden' : ''}`} ref={hint} aria-hidden>
         <span>SCROLL TO BREACH ▼</span>
       </div>
     </>

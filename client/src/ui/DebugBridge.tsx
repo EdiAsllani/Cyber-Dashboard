@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useThree } from '@react-three/fiber'
+import { useStore, useThree } from '@react-three/fiber'
 import { composerHandle } from '../fx/composerHandle'
 
 /**
@@ -13,6 +13,7 @@ import { composerHandle } from '../fx/composerHandle'
  * drivers, which reports impossibly fast frames.)
  */
 export function DebugBridge() {
+  const store = useStore()
   const gl = useThree((s) => s.gl)
   const scene = useThree((s) => s.scene)
   const camera = useThree((s) => s.camera)
@@ -45,10 +46,45 @@ export function DebugBridge() {
       }
     }
     Object.assign(window as unknown as Record<string, unknown>, {
-      __r3f: { gl, scene, camera },
+      // Live getters, not a snapshot: r3f can swap the default camera when the
+      // <Canvas camera={...}> prop object changes identity, and a captured
+      // reference then reports the position of an orphan that nothing writes —
+      // which reads exactly like a frozen render loop.
+      __r3f: {
+        get gl() {
+          return store.getState().gl
+        },
+        get scene() {
+          return store.getState().scene
+        },
+        get camera() {
+          return store.getState().camera
+        },
+      },
       __gpuProbe: probe,
+      // Steps the frame loop by hand. The in-app browser only paints while its
+      // pane is actually on screen, so requestAnimationFrame — and with it
+      // every useFrame — sits at zero frames while a headless check is
+      // running, and any damped transition looks frozen. This drives r3f's
+      // own `advance` with a synthetic clock instead, which makes the camera
+      // poses and reveal ramps verifiable without a visible viewport.
+      __advance: (frames = 60, stepMs = 16) => {
+        const { advance, clock } = store.getState()
+        const t0 = performance.now()
+        for (let i = 0; i < frames; i++) {
+          // The timestamp handed to `advance` only feeds r3f's own
+          // bookkeeping — every useFrame delta comes from `clock.getDelta()`,
+          // which reads the real wall clock. In a tight loop that is ~0.1 ms
+          // per step, so a damped transition would need thousands of frames to
+          // resolve. Winding the clock back by the step makes each frame *see*
+          // stepMs of elapsed time, which is what the callers actually mean.
+          clock.oldTime -= stepMs
+          advance(t0 + i * stepMs)
+        }
+        return frames
+      },
     })
-  }, [gl, scene, camera])
+  }, [store, gl, scene, camera])
 
   return null
 }

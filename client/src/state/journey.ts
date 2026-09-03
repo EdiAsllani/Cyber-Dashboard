@@ -8,19 +8,29 @@ import { create } from 'zustand'
  *   - inside `useFrame`: read `useJourney.getState().progress`
  *   - in the DOM:        `subscribeProgress()` + mutate a ref's style
  * `mode` / `quality` / `reducedMotion` change rarely — selectors are fine there.
+ * So do `focused` / `arrived`: they flip at most twice per terminal visit. But
+ * anything they *drive* per frame (emissive boosts, flicker) still reads
+ * `getState()` inside `useFrame` rather than re-rendering.
  */
 
-export type Mode = 'boot' | 'journey' | 'den'
+export type Mode = 'boot' | 'journey' | 'den' | 'terminal'
 export type Quality = 'high' | 'medium' | 'low'
+export type MonitorSide = 'left' | 'right'
 
 export interface JourneyState {
   mode: Mode
   progress: number
   quality: Quality
   reducedMotion: boolean
+  /** Which monitor the camera is locked to. Non-null exactly in terminal mode. */
+  focused: MonitorSide | null
+  /** Set by the rig once the dolly has actually landed — the overlay's cue. */
+  arrived: boolean
   jackIn: () => void
   enterDen: () => void
   exitDen: () => void
+  focusMonitor: (side: MonitorSide) => void
+  blurMonitor: () => void
   setQuality: (q: Quality) => void
 }
 
@@ -36,9 +46,18 @@ export const useJourney = create<JourneyState>((set) => ({
   progress: 0,
   quality: 'high',
   reducedMotion: initialReducedMotion(),
+  focused: null,
+  arrived: false,
   jackIn: () => set((s) => (s.mode === 'boot' ? { mode: 'journey' } : s)),
   enterDen: () => set((s) => (s.mode === 'journey' ? { mode: 'den' } : s)),
-  exitDen: () => set((s) => (s.mode === 'den' ? { mode: 'journey' } : s)),
+  // Guarded even though the terminal's scroll lock already makes it
+  // unreachable from there: the scroll trigger calls this blind on every
+  // upward frame, and a stray exit would strand the overlay over the journey.
+  exitDen: () => set((s) => (s.mode === 'den' ? { mode: 'journey', focused: null } : s)),
+  focusMonitor: (side) =>
+    set((s) => (s.mode === 'den' ? { mode: 'terminal', focused: side, arrived: false } : s)),
+  blurMonitor: () =>
+    set((s) => (s.mode === 'terminal' ? { mode: 'den', focused: null, arrived: false } : s)),
   setQuality: (quality) => set((s) => (s.quality === quality ? s : { quality })),
 }))
 
