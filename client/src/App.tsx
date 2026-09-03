@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { subscribeProgress, useJourney, watchReducedMotion } from './state/journey'
 import { useScrollRig } from './rig/useScrollRig'
 import { actAt } from './rig/acts'
 import { CameraRig } from './rig/CameraRig'
 import { PathHelper } from './rig/PathHelper'
+import { JourneyScene } from './scene/JourneyScene'
+import { DebugBridge } from './ui/DebugBridge'
 
 const debug = import.meta.env.DEV && location.search.includes('debug')
 
@@ -56,8 +58,12 @@ export default function App() {
           gl={{ antialias: false }}
         >
           <color attach="background" args={['#050505']} />
-          <CameraRig />
+          <Suspense fallback={null}>
+            <CameraRig />
+            <JourneyScene />
+          </Suspense>
           {debug && <PathHelper />}
+          {debug && <DebugBridge />}
         </Canvas>
       </div>
       <div className="hud">
