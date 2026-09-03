@@ -78,6 +78,9 @@ function debugHandles(lenis: Lenis): void {
     __lenis: lenis,
     __scrollTrigger: ScrollTrigger,
     __seek: (p: number) => lenis.scrollTo(p * lenis.limit, { immediate: true }),
+    // Pins progress without moving the document — the reliable way to grab
+    // per-act screenshots, since a scrolled page confuses capture tooling.
+    __pin: (p: number) => useJourney.setState({ progress: p }),
   })
 }
 

@@ -1,28 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
-import type { Mesh } from 'three'
-import { getProgress, subscribeProgress, useJourney, watchReducedMotion } from './state/journey'
+import { Canvas } from '@react-three/fiber'
+import { subscribeProgress, useJourney, watchReducedMotion } from './state/journey'
 import { useScrollRig } from './rig/useScrollRig'
 import { actAt } from './rig/acts'
+import { CameraRig } from './rig/CameraRig'
+import { PathHelper } from './rig/PathHelper'
 
 const debug = import.meta.env.DEV && location.search.includes('debug')
-
-function BreachCube() {
-  const ref = useRef<Mesh>(null)
-  useFrame((_, dt) => {
-    if (!ref.current) return
-    ref.current.rotation.x += dt * 0.4
-    ref.current.rotation.y += dt * 0.6
-    // temporary: proves the frame loop reads progress without re-rendering
-    ref.current.position.z = getProgress() * -20
-  })
-  return (
-    <mesh ref={ref}>
-      <boxGeometry args={[2, 2, 2]} />
-      <meshBasicMaterial color="#ff003c" wireframe />
-    </mesh>
-  )
-}
 
 /** Progress readout driven by store.subscribe → DOM mutation. Zero re-renders. */
 function ScrollReadout() {
@@ -66,8 +50,14 @@ export default function App() {
   return (
     <>
       <div className="canvas-wrap">
-        <Canvas camera={{ position: [0, 0, 5], fov: 50 }} dpr={[1, 2]}>
-          <BreachCube />
+        <Canvas
+          camera={{ position: [0, 1.6, 26], fov: 55, near: 0.1, far: 120 }}
+          dpr={[1, 2]}
+          gl={{ antialias: false }}
+        >
+          <color attach="background" args={['#050505']} />
+          <CameraRig />
+          {debug && <PathHelper />}
         </Canvas>
       </div>
       <div className="hud">
