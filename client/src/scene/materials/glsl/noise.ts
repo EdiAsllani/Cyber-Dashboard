@@ -5,7 +5,7 @@
  * the wall's lightning filaments.
  *
  * Octave count is a `#define` so the low quality tier can compile a cheaper
- * variant of the same shader (see blackwallMaterial.ts).
+ * variant of the same shader (see dissolveMaterial.ts).
  */
 
 /**

@@ -12,6 +12,7 @@ Statuses: ✅ decided · 🟡 proposed (awaiting Edi) · ⬜ later
 | D-06 | **GitHub OAuth is the only login**; wallet data keyed to that identity | 🟡 |
 | D-07 | Terminal UI: **custom React component**, not xterm.js | 🟡 |
 | D-08 | Database: **PostgreSQL**, not SQLite | ✅ |
+| D-09 | The Blackwall is an **instanced laser lattice**, not a noise plane | ✅ |
 
 ---
 
@@ -50,6 +51,11 @@ One identity: `login` in either terminal → GitHub OAuth → session cookie; fi
 
 ## D-07 — Custom terminal component 🟡
 xterm.js is a full VT-emulator — overkill and hard to style as a diegetic CP2077 screen (it owns its DOM/canvas). A custom component (~300 lines) gives us themed tables, typewriter output, glitch text, autocomplete chips, and clickable output for free. **Recommendation:** custom; steal ideas from xterm only if we ever need real PTY behavior.
+
+## D-09 — The Blackwall is an instanced laser lattice ✅
+Edi's call (2026-09-03), with a reference image. The original Phase 2 wall was a single plane running domain-warped FBM — it read as *boiling smoke*, and a flat plane can only ever be approached, never entered. The wall is now a volume: ~5.2k instanced dashed beams (crossed quads, additive, per-instance seeds driving dash density, drift, brightness and colour) spread through z ∈ [-16, 30] and x ∈ ±46, with the camera path threading a jittered corridor kept clear of eye-height beams — so the dive genuinely passes *between* lasers. Behind them sits the horizon: an additive quad with a white-hot core, red glow, wide haze and per-column spikes, which act 2 both brightens and thickens until it owns the frame and the pierce flash finishes the whiteout.
+
+Why it is the better call beyond matching the brief: it is *cheaper* (4.07 ms vs the plane's full-screen 11-simplex fragment cost), it gives the journey real parallax and depth cues the plane could not, and the quality ladder becomes a simple instance count (5200/2800/1300) instead of a shader recompile. Files: `scene/materials/laserFieldMaterial.ts`, `scene/materials/horizonMaterial.ts`, `scene/acts/Act1Blackwall.tsx`; `blackwallMaterial.ts` is deleted. The vendored simplex/FBM chunk stays — the act-4 room dissolve still uses it.
 
 ## D-08 — PostgreSQL over SQLite ✅
 Edi's call (2026-09-03). Rationale: we're in compose anyway (a DB container costs one YAML block); real `numeric(14,2)` for money vs SQLite's TEXT/REAL affinity; free `xmin` concurrency token; EF migrations are provider-specific so switching later would mean regenerating them; identical dev/prod story. Using `postgres:18-alpine` (volume mounts at `/var/lib/postgresql` — see research 04 §1).

@@ -100,7 +100,10 @@ export function Act3Tunnel() {
 
     // Fade in behind the pierce flash, fade out as the room materializes —
     // a hard visibility flip at either end would pop.
-    const alpha = ramp(p, 0.33, 0.42) * (1 - ramp(p, 0.68, 0.83))
+    // Starts only once the wall has fully faded (Act1's FADE_TO = 0.40), so the
+    // two never overlap: the flash covers a swap, not a dissolve of one into
+    // the other. Fades out again as the room materializes.
+    const alpha = ramp(p, 0.42, 0.5) * (1 - ramp(p, 0.68, 0.83))
     const live = alpha > 0.001
 
     flow.current += dt * flowRate
