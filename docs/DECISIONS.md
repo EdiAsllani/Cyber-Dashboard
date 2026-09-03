@@ -11,6 +11,7 @@ Statuses: ✅ decided · 🟡 proposed (awaiting Edi) · ⬜ later
 | D-05 | Room built from **primitives + emissive materials**, CC0 props optional | 🟡 |
 | D-06 | **GitHub OAuth is the only login**; wallet data keyed to that identity | 🟡 |
 | D-07 | Terminal UI: **custom React component**, not xterm.js | 🟡 |
+| D-08 | Database: **PostgreSQL**, not SQLite | ✅ |
 
 ---
 
@@ -35,6 +36,11 @@ One identity: `login` in either terminal → GitHub OAuth → session cookie; fi
 ## D-07 — Custom terminal component 🟡
 xterm.js is a full VT-emulator — overkill and hard to style as a diegetic CP2077 screen (it owns its DOM/canvas). A custom component (~300 lines) gives us themed tables, typewriter output, glitch text, autocomplete chips, and clickable output for free. **Recommendation:** custom; steal ideas from xterm only if we ever need real PTY behavior.
 
+## D-08 — PostgreSQL over SQLite ✅
+Edi's call (2026-09-03). Rationale: we're in compose anyway (a DB container costs one YAML block); real `numeric(14,2)` for money vs SQLite's TEXT/REAL affinity; free `xmin` concurrency token; EF migrations are provider-specific so switching later would mean regenerating them; identical dev/prod story. Using `postgres:18-alpine` (volume mounts at `/var/lib/postgresql` — see research 04 §1).
+
 ---
+
+*2026-09-03: Edi green-lit implementation. The remaining 🟡 items proceed on their stated recommendations — veto any of them before the phase that uses it lands (D-04/05: Phases 2–3, D-02/06: Phase 5, D-03/07: Phase 3–4).*
 
 *Superseded/rejected ideas get moved to the bottom with a one-line why, so we don't re-litigate them.*

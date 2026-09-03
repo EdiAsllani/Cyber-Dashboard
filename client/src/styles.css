@@ -1,0 +1,52 @@
+:root {
+  --void: #050505;
+  --panel: #0d0d0d;
+  --arasaka-red: #c5003c;
+  --hot-red: #ff003c;
+  --blood: #880425;
+  --ghost: #e8e8e8;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  background: var(--void);
+  color: var(--ghost);
+  font-family: 'Rajdhani', system-ui, sans-serif;
+  overflow: hidden;
+}
+
+.canvas-wrap {
+  position: fixed;
+  inset: 0;
+}
+
+.hud {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.hud .title {
+  color: var(--hot-red);
+}
+
+.hud .status {
+  color: var(--ghost);
+  opacity: 0.7;
+}
