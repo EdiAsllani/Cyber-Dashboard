@@ -7,7 +7,7 @@ Statuses: ✅ decided · 🟡 proposed (awaiting Edi) · ⬜ later
 | D-01 | three.js via **react-three-fiber**, not vanilla three | ✅ |
 | D-02 | GitHub access: OAuth App with `read:user` + `repo` scope | 🟡 |
 | D-03 | Terminal commands parsed **client-side** → typed REST endpoints | 🟡 |
-| D-04 | Scroll rig: **GSAP ScrollTrigger + Lenis**, not drei ScrollControls | 🟡 |
+| D-04 | Scroll rig: **GSAP ScrollTrigger + Lenis**, not drei ScrollControls | ✅ |
 | D-05 | Room built from **primitives + emissive materials**, CC0 props optional | 🟡 |
 | D-06 | **GitHub OAuth is the only login**; wallet data keyed to that identity | 🟡 |
 | D-07 | Terminal UI: **custom React component**, not xterm.js | 🟡 |
@@ -24,8 +24,23 @@ OAuth App is far less setup than a GitHub App (no installation flow) and fine fo
 ## D-03 — Client-side command parsing 🟡
 Terminal keeps a command registry (name, args schema, handler, help text) and maps commands onto clean REST calls. Server stays a normal API (testable, reusable, OpenAPI-documented) and still owns all invariants (overdraft, escrow, cooldowns). Alternative — a single `POST /terminal/exec` that parses server-side — feels cool but couples UX to API and makes autocomplete/help harder. **Recommendation:** client-side registry.
 
-## D-04 — GSAP ScrollTrigger + Lenis 🟡
+## D-04 — GSAP ScrollTrigger + Lenis ✅
 We need: pinned full-screen canvas, 5 acts with eased per-act uniform timelines, scrub control, and a clean "unpin into interactive mode" at the end. ScrollTrigger timelines express that directly and GSAP is fully free now; drei `ScrollControls` is simpler but fights us on the final handoff and DOM/canvas mixing. **Recommendation:** ScrollTrigger drives a normalized `t` into zustand; R3F consumes it. (Research doc 01 has tutorials for both.)
+
+*Confirmed by Phase 2 (2026-09-03).* Shipped as a single scrubbed trigger over a
+`600svh` track writing `progress` into the store, with Lenis glued in via
+`gsap.ticker`. Two things are worth knowing before touching this again:
+
+1. The per-act timelines never materialized and were not needed. Acts turned
+   out to be cleaner as **pure functions of `t`** (`rig/acts.ts`: `actAt`,
+   `actWindow`, `ramp`) read inside `useFrame`, rather than as GSAP tweens on
+   uniforms. Scrubbing backwards is then free, and nothing can desynchronize
+   from the scroll position.
+2. `useGSAP` **defers its cleanup to unmount whenever it is given a dependency
+   array**. A dependency change re-runs the callback without calling the
+   cleanup you returned, which silently leaves a second ScrollTrigger and a
+   second Lenis running. Always pass the config form with
+   `revertOnUpdate: true`.
 
 ## D-05 — Primitives-first room 🟡
 Full control over style (emissive Arasaka red/black), zero license risk, tiny download, and monitors need to be *our* meshes anyway (screen quads we control for glow/zoom/Html). CC0/CC-BY props (chair, clutter, keyboard) can be dropped in later where primitives look too crude. **Recommendation:** hybrid, primitives-first; verified asset links live in research doc 02 if we want them.
@@ -41,6 +56,6 @@ Edi's call (2026-09-03). Rationale: we're in compose anyway (a DB container cost
 
 ---
 
-*2026-09-03: Edi green-lit implementation. The remaining 🟡 items proceed on their stated recommendations — veto any of them before the phase that uses it lands (D-04/05: Phases 2–3, D-02/06: Phase 5, D-03/07: Phase 3–4).*
+*2026-09-03: Edi green-lit implementation. The remaining 🟡 items proceed on their stated recommendations — veto any of them before the phase that uses it lands (D-05: Phase 3, D-02/06: Phase 5, D-03/07: Phases 3–4). D-04 is now settled by Phase 2.*
 
 *Superseded/rejected ideas get moved to the bottom with a one-line why, so we don't re-litigate them.*

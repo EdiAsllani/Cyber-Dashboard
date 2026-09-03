@@ -2,7 +2,7 @@
 
 > A scroll-driven 3D dashboard styled after Cyberpunk 2077 — the Blackwall, Arasaka red/black, and in-world terminals. You scroll *through* the Blackwall, land in a netrunner's den, and run your life from the monitors on the desk.
 
-**Status: `PHASE 1 — SKELETON RUNNING`** — stack boots via compose (cube + API + DB, hot reload). Next up: the Blackwall journey ([docs/ROADMAP.md](docs/ROADMAP.md)).
+**Status: `PHASE 2 — THE BLACKWALL JOURNEY RUNS`** — boot gate → five-act scroll dive (Blackwall shader → pierce → data tunnel → the room materializing) with a postFX chain, live quality tiers and a reduced-motion path. Next up: the Den itself — real room, monitors, terminal core ([docs/ROADMAP.md](docs/ROADMAP.md)).
 
 ---
 
@@ -36,14 +36,20 @@ Clicking a monitor dollies the camera into the screen and boots a terminal:
 ## Repo layout
 
 ```
-├── client/                 # Vite + React + R3F SPA        (Phase 1)
+├── client/                 # Vite + React + R3F SPA        (Phases 1-2)
+│   └── src/
+│       ├── state/          # zustand journey store (the central contract)
+│       ├── rig/            # scroll pipeline, act math, camera curves
+│       ├── scene/          # acts + GLSL materials
+│       ├── fx/             # postFX chain, quality tiers
+│       └── ui/             # boot screen, HUD, debug tooling
 ├── server/                 # ASP.NET Core 10 API           (Phase 1)
 ├── docs/
 │   ├── ARCHITECTURE.md     # system design, data model, command spec
 │   ├── ROADMAP.md          # build phases + acceptance criteria
 │   ├── DECISIONS.md        # decision log (ADR-lite)
 │   └── research/           # Phase 0 deep-research notes + resources
-├── docker-compose.yml      # dev environment (blueprint until Phase 1)
+├── docker-compose.yml      # dev environment (compose watch)
 └── .env.example            # copy to .env, fill in secrets
 ```
 
@@ -57,6 +63,18 @@ docker compose up --build --watch
 - Client: http://localhost:5173 (Vite dev server, proxies `/api` → server)
 - API: http://localhost:5210
 - Postgres: localhost:5432
+
+Click **`[ JACK IN ]`** on the boot screen, then scroll. Scrolling does nothing
+until you do — the gate exists to force a user gesture before the page takes
+over the scroll (and, from Phase 6, to unlock audio).
+
+Append `?debug` in development for the tuning tools: a leva panel (scrub the
+journey, force a quality tier, force reduced motion), the r3f-perf HUD, the
+camera-path helper, and console handles — `__seek(t)` scrolls to a progress
+value, `__pin(t)` freezes one without moving the document, `__gpuProbe(n)`
+times the real composed frame, `__renders` shows per-component render counts.
+All of it is dynamically imported behind the flag, so none of it reaches a
+production bundle.
 
 ## Docs index
 
