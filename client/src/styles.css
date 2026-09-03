@@ -60,3 +60,17 @@ body,
   height: 600svh;
   pointer-events: none;
 }
+
+/* Act 2 — the pierce. Sits above the canvas and below nothing: it washes the
+   HUD too, which is what hides the wall→tunnel swap. Opacity is mutated from
+   the store subscription, never from React state. */
+.pierce-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 45%, #ffffff 0%, #ffffff 14%, var(--hot-red) 46%, var(--blood) 78%, rgba(136, 4, 37, 0.55) 100%);
+  mix-blend-mode: screen;
+  will-change: opacity;
+}

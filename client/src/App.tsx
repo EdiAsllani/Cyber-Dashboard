@@ -7,8 +7,10 @@ import { CameraRig } from './rig/CameraRig'
 import { PathHelper } from './rig/PathHelper'
 import { JourneyScene } from './scene/JourneyScene'
 import { DebugBridge } from './ui/DebugBridge'
-
-const debug = import.meta.env.DEV && location.search.includes('debug')
+import { PostFX } from './fx/PostFX'
+import { QualityTiers } from './fx/QualityTiers'
+import { PierceFlash } from './ui/PierceFlash'
+import { debug } from './ui/debugFlag'
 
 /** Progress readout driven by store.subscribe → DOM mutation. Zero re-renders. */
 function ScrollReadout() {
@@ -61,11 +63,14 @@ export default function App() {
           <Suspense fallback={null}>
             <CameraRig />
             <JourneyScene />
+            <PostFX />
           </Suspense>
+          <QualityTiers />
           {debug && <PathHelper />}
           {debug && <DebugBridge />}
         </Canvas>
       </div>
+      <PierceFlash />
       <div className="hud">
         <span className="title">CYBER-DASHBOARD // {mode.toUpperCase()}</span>
         <span className="status">{status}</span>

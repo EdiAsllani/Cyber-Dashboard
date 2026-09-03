@@ -73,8 +73,8 @@ void main() {
   // Colour is layered ADDITIVELY over black rather than mixed up from a base:
   // mixing floods the whole plane with red, and the Blackwall has to be mostly
   // void with energy running through it.
-  vec3 col = uColorA * smoothstep(0.44, 0.72, v) * 0.45;
-  col += uColorB * smoothstep(0.66, 0.90, v) * 0.6;
+  vec3 col = uColorA * smoothstep(0.46, 0.74, v) * 0.30;
+  col += uColorB * smoothstep(0.68, 0.92, v) * 0.42;
   col += uColorC * smoothstep(0.86, 0.99, v) * 0.85;
 
   // Where the wall is energetic at all — gates the bands so they never draw

@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useThree } from '@react-three/fiber'
+import { composerHandle } from '../fx/composerHandle'
 
 /**
  * Debug-only console bridge (mounted inside <Canvas>). Exposes the renderer so
@@ -23,10 +24,14 @@ export function DebugBridge() {
       ctx.readPixels(0, 0, 1, 1, ctx.RGBA, ctx.UNSIGNED_BYTE, px)
     }
     const probe = (frames = 30) => {
-      gl.render(scene, camera)
+      // Drive the post chain when it exists; timing gl.render alone would
+      // silently omit every EffectPass.
+      const composer = composerHandle.current
+      const draw = composer ? () => composer.render(1 / 60) : () => gl.render(scene, camera)
+      draw()
       sync()
       const t0 = performance.now()
-      for (let i = 0; i < frames; i++) gl.render(scene, camera)
+      for (let i = 0; i < frames; i++) draw()
       sync()
       const total = performance.now() - t0
       return {
