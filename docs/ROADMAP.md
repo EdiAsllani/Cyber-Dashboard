@@ -17,9 +17,10 @@ Scroll rig (Lenis + ScrollTrigger → zustand progress), Act 1 Blackwall, Act 2 
 
 **dpr caveat.** The dev machine is an AMD Renoir *integrated* GPU on a dpr-1 display, i.e. below the "mid GPU" bar and unable to exercise dpr 2 at all. The full chain measures 12.0 ms high / 11.9 medium / 10.6 low at dpr 1, so the ~60 fps target holds here with headroom, and a mid-range discrete GPU has 3–5× the fill rate needed for dpr 2. Confirming 60 fps at dpr 2 needs a hi-dpi machine, and `PerformanceMonitor` covers the case where it does not hold.
 
-## Phase 3 — The Den
-Room modeling/assembly (primitives + emissive materials, optionally CC0 props), lighting pass, idle parallax, monitor hover glow, click → camera dolly → fullscreen terminal overlay with CRT frame, ESC back out. Terminal core: registry, parser, history, autocomplete, boot banners (no real services yet — mock echo commands).
-**Accept:** both monitors enterable/exitable smoothly; terminal core usable with mock commands; journey → den handoff seamless.
+## Phase 3 — The Den — plan ready: [docs/plans/phase-3-den.md](plans/phase-3-den.md)
+Room modeling/assembly (primitives + emissive materials), lighting pass, idle parallax, monitor hover glow, click → camera dolly → fullscreen terminal overlay with CRT frame, ESC back out. Terminal core: registry, parser, history, autocomplete, boot banners (no real services yet — mock commands).
+Edi's art direction (2026-09-03, detailed in the plan): closer seat pose; ceiling ventilation tubes; wall wires; neon signs with game quotes (`TIME TO GO KLEPPING` required); bigger monitors, right one higher, wider apart, on visible arms; keyboard + mouse; an Airhypo and the Malorian Arms 3516 on the desk (wiki-referenced primitive homages); both screens idling with `INTERLINKED` + scrolling logs.
+**Accept:** both monitors enterable/exitable smoothly; terminal core usable with mock commands; journey → den handoff seamless; every art-direction item present (plan §2 walked literally).
 
 ## Phase 4 — WALLET.SYS
 Wallet + budgets backend (entities, invariants, endpoints per ARCHITECTURE §5–6), seeding on first login (dev: seeded local user until Phase 5 auth lands), terminal commands wired to typed API client, themed errors (overdraft, cooldown), history table rendering.
