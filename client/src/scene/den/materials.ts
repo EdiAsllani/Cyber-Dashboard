@@ -30,6 +30,10 @@ export interface DenMaterials {
   metal: THREE.MeshStandardMaterial
   /** Screen fallback until the canvas feed lands. */
   screen: THREE.MeshStandardMaterial
+  /** Keycaps — a shade lighter than the slab so the grid reads. */
+  keycap: THREE.MeshStandardMaterial
+  /** Hot red slivers: keyboard underglow, DPI dot, seams on props. */
+  underglow: THREE.MeshStandardMaterial
 }
 
 export function useDenMaterials(reveal: THREE.IUniform<number>): DenMaterials {
@@ -51,6 +55,20 @@ export function useDenMaterials(reveal: THREE.IUniform<number>): DenMaterials {
       ),
       desk: createDissolveMaterial({ color: '#080808', roughness: 0.6, metalness: 0.3 }, reveal),
       metal: createDissolveMaterial({ color: '#161616', roughness: 0.6, metalness: 0.5 }, reveal),
+      keycap: createDissolveMaterial(
+        { color: '#151515', roughness: 0.75, metalness: 0.1 },
+        reveal,
+      ),
+      underglow: createDissolveMaterial(
+        {
+          color: '#0a0000',
+          emissive: new THREE.Color('#ff003c'),
+          emissiveIntensity: 1.4,
+          roughness: 0.5,
+          toneMapped: false,
+        },
+        reveal,
+      ),
       screen: createDissolveMaterial(
         {
           color: '#050505',

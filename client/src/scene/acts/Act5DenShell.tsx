@@ -47,7 +47,7 @@ export function Act5DenShell() {
     // Physically-correct falloff (three r155+ dropped legacy lights), so these
     // are candela and need to be an order of magnitude above the old numbers.
     if (lamp.current) lamp.current.intensity = 40 * reveal.value
-    if (deskLamp.current) deskLamp.current.intensity = 12 * reveal.value
+    if (deskLamp.current) deskLamp.current.intensity = 26 * reveal.value
   })
 
   return (
@@ -56,7 +56,7 @@ export function Act5DenShell() {
           are ramped up in the den. Mounting a light later would change the
           scene's light count, which is a shader define — every standard
           material would recompile at the act-4 boundary. */}
-      <ambientLight intensity={0.15} />
+      <ambientLight intensity={0.2} />
       <pointLight
         ref={lamp}
         position={[1.1, 2.74, ROOM.z + 1.2]}
@@ -74,7 +74,7 @@ export function Act5DenShell() {
         position={[-0.98, 1.0, ROOM.z - 0.5]}
         color="#ff003c"
         intensity={0}
-        distance={5}
+        distance={6.5}
       />
 
       <group ref={group} position={[0, 0, ROOM.z]} visible={false}>
