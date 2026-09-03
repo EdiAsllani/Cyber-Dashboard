@@ -94,13 +94,16 @@ export function Act3Tunnel() {
   useFrame((state, dt) => {
     const p = getProgress()
     const camZ = state.camera.position.z
+    // Reduced motion: streaks stop streaming on their own and only move
+    // because the camera does.
+    const flowRate = useJourney.getState().reducedMotion ? 0 : FLOW
 
     // Fade in behind the pierce flash, fade out as the room materializes —
     // a hard visibility flip at either end would pop.
     const alpha = ramp(p, 0.33, 0.42) * (1 - ramp(p, 0.68, 0.83))
     const live = alpha > 0.001
 
-    flow.current += dt * FLOW
+    flow.current += dt * flowRate
 
     const m = mesh.current
     if (m) {
@@ -110,7 +113,7 @@ export function Act3Tunnel() {
 
       if (live) {
         const arr = m.instanceMatrix.array as Float32Array
-        const drift = dt * FLOW
+        const drift = dt * flowRate
         const recycleAt = camZ + 6
         for (let i = 0; i < m.count; i++) {
           let zi = z[i] + drift

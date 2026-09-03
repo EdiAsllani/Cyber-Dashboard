@@ -283,7 +283,9 @@ body,
   opacity: 0.4;
 }
 
-/* Reduced motion: keep every state change, drop the movement. */
+/* Reduced motion: keep every state change, drop the movement.
+   Declared twice on purpose — the media query covers first paint, the
+   attribute (mirrored from the store) covers a runtime override. */
 @media (prefers-reduced-motion: reduce) {
   .hud__hint span,
   .boot__jack,
@@ -297,4 +299,17 @@ body,
   .hud__title--glitch::after {
     content: none;
   }
+}
+
+:root[data-reduced-motion='true'] .hud__hint span,
+:root[data-reduced-motion='true'] .boot__jack,
+:root[data-reduced-motion='true'] .boot__line,
+:root[data-reduced-motion='true'] .hud__title--glitch::before,
+:root[data-reduced-motion='true'] .hud__title--glitch::after {
+  animation: none;
+}
+
+:root[data-reduced-motion='true'] .hud__title--glitch::before,
+:root[data-reduced-motion='true'] .hud__title--glitch::after {
+  content: none;
 }

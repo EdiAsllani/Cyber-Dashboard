@@ -54,7 +54,10 @@ export function PostFX() {
 
     if (ca.current) {
       // A constant sliver of RGB split near the wall, blown out at the pierce.
-      const base = reducedMotion ? 0.0004 : 0.0008
+      // Damped through the tunnel: the streaks are thin and very bright, and a
+      // radial split across them reads as a rendering artefact rather than an
+      // effect.
+      const base = (reducedMotion ? 0.0003 : 0.0008) * (1 - tunnel * 0.7)
       const x = base + spike * 0.006
       ca.current.offset.set(x, x * 0.6)
     }

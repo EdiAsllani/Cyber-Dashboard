@@ -49,7 +49,13 @@ export function useScrollRig(debug = false): void {
 
     const trigger = createTrigger()
     return () => trigger.kill()
-  }, [reducedMotion, debug])
+    // revertOnUpdate is required, not optional. Given a dependency array,
+    // useGSAP sets deferCleanup and only reverts its context on UNMOUNT — a
+    // dependency change re-runs the callback without ever calling the cleanup
+    // we return. Flipping reducedMotion then leaves the old ScrollTrigger and
+    // Lenis alive alongside the new ones (verified: getAll().length went to 2),
+    // which is exactly the duplicate-smoother trap.
+  }, { dependencies: [reducedMotion, debug], revertOnUpdate: true })
 
   // Scroll lock while the boot screen is up: no peeking at the wall before
   // JACK IN. Also guarantees the journey always starts from t=0.

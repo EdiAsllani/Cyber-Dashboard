@@ -56,12 +56,34 @@ export function subscribeProgress(cb: (p: number) => void): () => void {
   })
 }
 
-/** Keeps `reducedMotion` in sync with the OS setting. Call once from App. */
+/**
+ * Keeps `reducedMotion` in sync with the OS setting, and mirrors whatever the
+ * store ends up holding onto `<html data-reduced-motion>`.
+ *
+ * The mirror matters because the flag can also be flipped at runtime (the debug
+ * panel does it). CSS that only keyed off the media query would then disagree
+ * with the scene, so the stylesheet honours both the query and the attribute.
+ * Call once from App.
+ */
 export function watchReducedMotion(): () => void {
   if (typeof window === 'undefined' || !window.matchMedia) return () => {}
+
+  const reflect = (on: boolean) => {
+    document.documentElement.dataset.reducedMotion = String(on)
+  }
+
   const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
-  const sync = () => useJourney.setState({ reducedMotion: mq.matches })
-  sync()
-  mq.addEventListener('change', sync)
-  return () => mq.removeEventListener('change', sync)
+  const fromMedia = () => useJourney.setState({ reducedMotion: mq.matches })
+  fromMedia()
+  reflect(useJourney.getState().reducedMotion)
+
+  mq.addEventListener('change', fromMedia)
+  const unsub = useJourney.subscribe((s, prev) => {
+    if (s.reducedMotion !== prev.reducedMotion) reflect(s.reducedMotion)
+  })
+
+  return () => {
+    mq.removeEventListener('change', fromMedia)
+    unsub()
+  }
 }
