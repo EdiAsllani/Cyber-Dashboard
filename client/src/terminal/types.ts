@@ -1,8 +1,9 @@
 /**
- * The terminal's contracts — and the seam Phases 4–5 fill (DECISIONS D-03):
- * a command is a name plus a `run` that returns lines. The mock edition's
- * handlers are synchronous flavor; Phase 4 swaps their bodies for API calls
- * and nothing else in the terminal changes.
+ * The terminal's contracts — the seam between the CRT and the services
+ * (DECISIONS D-03): a command is a name plus a `run` that returns lines.
+ * Phase 4 wired WALLET.SYS through it; Phase 5 added `print`/`signal` so a
+ * long ceremony (the GitHub device flow) can talk while it waits, and `motd`
+ * so a skin can greet the operator — or refuse them — after the banner.
  */
 
 export interface TerminalLine {
@@ -17,6 +18,10 @@ export interface TerminalLine {
 export interface CommandCtx {
   /** Wipes the scrollback — `clear` is the only caller today. */
   clear(): void
+  /** Append lines *now*, before `run` resolves — progress during a long wait. */
+  print(lines: TerminalLine[]): void
+  /** Fires when the terminal unmounts (ESC). Long-running commands stop on it. */
+  signal: AbortSignal
 }
 
 export interface Command {
@@ -36,6 +41,8 @@ export interface TerminalSkin {
   prompt: string
   /** Typed out at ~20ms/char on boot (instantly under reduced motion). */
   banner: string[]
+  /** Printed once the banner is done — session state, ACCESS DENIED hints. */
+  motd?: () => Promise<TerminalLine[]>
   /** Skin flavor on top of the shared base commands. */
   commands: Command[]
 }

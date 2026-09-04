@@ -36,6 +36,33 @@ export function stamp(iso: string): string {
   return `${mon} ${day} ${hm}`
 }
 
+/** `2h ago` / `3d ago` / `just now` — coarse, for commit and push times. */
+export function ago(iso: string | null | undefined): string {
+  if (!iso) return '?'
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000)
+  if (s < 60) return 'just now'
+  const m = Math.floor(s / 60)
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 48) return `${h}h ago`
+  const d = Math.floor(h / 24)
+  if (d < 60) return `${d}d ago`
+  return `${Math.floor(d / 30)}mo ago`
+}
+
+/** `in 42m` / `in 1h 05m` — for rate-limit resets. */
+export function until(iso: string): string {
+  const s = Math.max(0, (new Date(iso).getTime() - Date.now()) / 1000)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  return h > 0 ? `in ${h}h ${String(m).padStart(2, '0')}m` : `in ${m}m`
+}
+
+/** First line of a commit message, trimmed. */
+export function firstLine(text: string): string {
+  return text.split('\n')[0].trim()
+}
+
 /**
  * Pad columns to their widest cell. `right` marks right-aligned columns
  * (numbers). Returns one string per row, two spaces between columns.

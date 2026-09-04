@@ -1,4 +1,5 @@
-import { api } from './api'
+import { api, ApiError } from './api'
+import { ACCESS_DENIED, themedBase } from './shared'
 import type { Command, CommandCtx, TerminalLine } from './types'
 
 /**
@@ -54,12 +55,15 @@ const BASE: Command[] = [
         return [
           { text: `${me.handle} // ${me.alias.toLowerCase()} @ ${me.provider.toLowerCase()}` },
           {
-            text: me.gitHubLogin ? `github :: ${me.gitHubLogin}` : 'github :: NOT LINKED (Phase 5)',
+            text: me.gitHubLogin
+              ? `github :: ${me.gitHubLogin} (linked ${(me.gitHubLinkedAt ?? '').slice(0, 10) || '?'})`
+              : 'github :: UNLINKED',
             kind: 'dim' as const,
           },
         ]
-      } catch {
-        return [{ text: 'edi // netrunner-1 (offline)' }]
+      } catch (e) {
+        if (e instanceof ApiError) return e.code === 'ACCESS_DENIED' ? ACCESS_DENIED : themedBase(e)
+        return [{ text: 'NO CARRIER — relay unreachable', kind: 'err' }]
       }
     },
   },
@@ -73,8 +77,7 @@ const BASE: Command[] = [
     name: 'status',
     args: '',
     help: 'link diagnostics',
-    // The one allowed real API call (it already exists): /api/health through
-    // the vite proxy. Everything else in the mock edition is flavor.
+    // /api/health is anonymous, so this works logged out — which is the point.
     run: async () => {
       const lines: TerminalLine[] = [
         { text: `uplink        :: ${uptime()} since jack-in` },
@@ -82,10 +85,14 @@ const BASE: Command[] = [
       ]
       try {
         const r = await fetch('/api/health')
-        const d = (await r.json()) as { db: boolean }
+        const d = (await r.json()) as { db: boolean; github: boolean }
         lines.push({
           text: `relay /api/health :: ${d.db ? 'BREACHED' : 'UP // DB OFFLINE'}`,
           kind: d.db ? 'out' : 'warn',
+        })
+        lines.push({
+          text: `github uplink :: ${d.github ? 'CONFIGURED' : 'NOT CONFIGURED (no client id)'}`,
+          kind: d.github ? 'dim' : 'warn',
         })
       } catch {
         lines.push({ text: 'relay /api/health :: NO CARRIER', kind: 'err' })

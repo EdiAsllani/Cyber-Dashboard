@@ -1,20 +1,17 @@
-import { api, ApiError, OfflineError } from '../api'
-import type { BudgetDto, SettingDto } from '../api'
+import { api, ApiError } from '../api'
+import type { BudgetDto } from '../api'
 import { bar, eddies, parseAmount, signedEddies, stamp, table, truncate } from '../fmt'
+import { dim, err, out, run as runShared, sessionCommands, sessionMotd, themedBase, warn } from '../shared'
 import type { TerminalLine, TerminalSkin } from '../types'
 
 /**
  * The left monitor: Arasaka Trust's wallet console, wired to the real API
- * (Phase 4). The server owns every invariant; this file owns the drama —
- * ApiError codes map to themed output here (D-03).
+ * (Phase 4) behind the GitHub session (Phase 5). The server owns every
+ * invariant; this file owns the drama — wallet ApiError codes map to themed
+ * output here (D-03); session/uplink codes fall through to the shared base.
  */
 
-const out = (text: string): TerminalLine => ({ text })
-const dim = (text: string): TerminalLine => ({ text, kind: 'dim' })
-const warn = (text: string): TerminalLine => ({ text, kind: 'warn' })
-const err = (text: string): TerminalLine => ({ text, kind: 'err' })
-
-/** ApiError code → themed lines. Unknown codes fall through with the server text. */
+/** Wallet ApiError codes → themed lines; anything else goes to the shared base. */
 function themed(e: ApiError): TerminalLine[] {
   const meta = e.meta ?? {}
   switch (e.code) {
@@ -48,27 +45,13 @@ function themed(e: ApiError): TerminalLine[] {
       return [err('INVALID NAME — 1..64 characters')]
     case 'INVALID_FILTER':
       return [err(e.message.toUpperCase()), dim(`kinds: ${KIND_ALIASES.join(' | ')}`)]
-    case 'UNKNOWN_SETTING':
-      return [err(`UNKNOWN KEY — ${e.message}`), dim("run 'config list' for the registry")]
-    case 'INVALID_SETTING_VALUE':
-      return [err('VALUE REFUSED'), dim(`allowed :: ${meta.allowed}`)]
-    case 'CONCURRENCY_CONFLICT':
-      return [warn('LEDGER CONTENTION — another write landed first. run it again.')]
     default:
-      return [err(`${e.code} :: ${e.message}`)]
+      return themedBase(e)
   }
 }
 
-/** Wrap a command body: ApiError → theme, network death → NO CARRIER. */
-async function run(fn: () => Promise<TerminalLine[]>): Promise<TerminalLine[]> {
-  try {
-    return await fn()
-  } catch (e) {
-    if (e instanceof ApiError) return themed(e)
-    if (e instanceof OfflineError) return [err('NO CARRIER — arasaka trust unreachable')]
-    throw e
-  }
-}
+const run = (fn: () => Promise<TerminalLine[]>) =>
+  runShared(fn, themed, 'NO CARRIER — arasaka trust unreachable')
 
 // ---- rendering helpers ----
 
@@ -111,70 +94,6 @@ function reachedBlock(name: string, target: number, seq: number): TerminalLine[]
   ]
 }
 
-function settingLines(s: SettingDto): TerminalLine[] {
-  return [
-    out(`${s.key} = ${s.value}`),
-    dim(`${s.description} // allowed: ${s.allowed} // default: ${s.default}`),
-  ]
-}
-
-// ---- config family (shared by `config` and `sudo config`) ----
-
-function runConfig(argv: string[], elevated: boolean): Promise<TerminalLine[]> | TerminalLine[] {
-  const [sub, key, ...rest] = argv
-  switch (sub) {
-    case undefined:
-    case 'list':
-      return run(async () => {
-        const all = await api.settings()
-        const rows = all.map((s) => [
-          s.key,
-          s.value + (s.value === s.default ? '' : ' *'),
-          s.allowed,
-        ])
-        return [
-          ...table([['KEY', 'VALUE', 'ALLOWED'], ...rows]).map((text, i) =>
-            i === 0 ? dim(text) : out(text),
-          ),
-          dim('* diverges from default // sudo config set <key> <value>'),
-        ]
-      })
-    case 'get':
-      if (!key) return [err('usage: config get <key>')]
-      return run(async () => {
-        const s = (await api.settings()).find((x) => x.key === key.toLowerCase())
-        if (!s) return [err(`UNKNOWN KEY — '${key}'`), dim("run 'config list' for the registry")]
-        return settingLines(s)
-      })
-    case 'set': {
-      if (!elevated)
-        return [
-          warn('PERMISSION DENIED — you are not root.'),
-          dim(`try: sudo config set ${key ?? '<key>'} ${rest.join(' ') || '<value>'}`),
-        ]
-      const value = rest.join(' ')
-      if (!key || !value) return [err('usage: sudo config set <key> <value>')]
-      return run(async () => {
-        const s = await api.setSetting(key, value)
-        return [out(`${s.key} → ${s.value}`), dim('committed to the registry.')]
-      })
-    }
-    case 'reset':
-      if (!elevated)
-        return [
-          warn('PERMISSION DENIED — you are not root.'),
-          dim(`try: sudo config reset ${key ?? '<key>'}`),
-        ]
-      if (!key) return [err('usage: sudo config reset <key>')]
-      return run(async () => {
-        const s = await api.resetSetting(key)
-        return [out(`${s.key} → ${s.value}`), dim('restored to default.')]
-      })
-    default:
-      return [err(`unknown config action '${sub}'`), dim('config [list] | config get <key> | sudo config set|reset …')]
-  }
-}
-
 // ---- the skin ----
 
 export const wallet: TerminalSkin = {
@@ -188,7 +107,9 @@ export const wallet: TerminalSkin = {
     'compliance daemon .... ASLEEP',
     "type 'help' to list commands",
   ],
+  motd: sessionMotd,
   commands: [
+    ...sessionCommands,
     {
       name: 'balance',
       args: '',
@@ -392,25 +313,6 @@ export const wallet: TerminalSkin = {
               dim('budget | budget add <name…> <target> | fund <id> <amt> | cancel <id> | rm <id>'),
             ]
         }
-      },
-    },
-    {
-      name: 'config',
-      args: '[list|get] …',
-      help: 'read the settings registry',
-      run: (argv) => runConfig(argv, false),
-    },
-    {
-      name: 'sudo',
-      args: 'config set|reset …',
-      help: 'mutate the registry (root required)',
-      run: (argv) => {
-        if (argv[0] !== 'config')
-          return [
-            err('sudo: only the config registry answers to root here'),
-            dim('sudo config set <key> <value> | sudo config reset <key>'),
-          ]
-        return runConfig(argv.slice(1), true)
       },
     },
   ],

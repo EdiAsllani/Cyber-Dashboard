@@ -39,6 +39,8 @@ export function useTerminal(skin: TerminalSkin): TerminalHandle {
   const draft = useRef('')
   /** The token the previous Tab saw — an unchanged repeat means "list them". */
   const lastTab = useRef<string | null>(null)
+  /** Aborted on unmount so a waiting command (the login poll) stops with the CRT. */
+  const aborter = useRef<AbortController>(new AbortController())
 
   // Boot banner. The typed-so-far state derives from one char counter, so the
   // effect is idempotent — StrictMode's double-run just restarts the typing.
@@ -80,6 +82,26 @@ export function useTerminal(skin: TerminalSkin): TerminalHandle {
     })
   }, [])
 
+  // One AbortController per mount. StrictMode's dry run aborts the first and
+  // the effect re-arms, so the live controller is always the un-aborted one.
+  useEffect(() => {
+    aborter.current = new AbortController()
+    const ac = aborter.current
+    return () => ac.abort()
+  }, [skin])
+
+  // Motd after the banner: session state, or the ACCESS DENIED hint.
+  useEffect(() => {
+    if (!ready || !skin.motd) return
+    let live = true
+    void skin.motd().then((lines) => {
+      if (live) push(lines)
+    })
+    return () => {
+      live = false
+    }
+  }, [ready, skin, push])
+
   const submit = useCallback(() => {
     const value = input
     setInput('')
@@ -92,7 +114,11 @@ export function useTerminal(skin: TerminalSkin): TerminalHandle {
     const hist = HISTORIES.get(skin.id) ?? []
     if (hist[hist.length - 1] !== value) hist.push(value)
     HISTORIES.set(skin.id, hist)
-    const result = registry.run(value, { clear: () => setLines([]) })
+    const result = registry.run(value, {
+      clear: () => setLines([]),
+      print: push,
+      signal: aborter.current.signal,
+    })
     if (Array.isArray(result)) push(result)
     else void result.then(push)
   }, [input, push, registry, skin])

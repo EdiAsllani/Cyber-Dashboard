@@ -35,8 +35,10 @@ services:
       DOTNET_USE_POLLING_FILE_WATCHER: "true"
       DOTNET_WATCH_RESTART_ON_RUDE_EDIT: "true"
       ConnectionStrings__Default: "Host=db;Port=5432;Database=${POSTGRES_DB:-cyberdash};Username=${POSTGRES_USER:-netrunner};Password=${POSTGRES_PASSWORD:-change-me-blackwall-dev}"
+      # Device flow (D-14) needs only the public client id — no secret, no
+      # callback URL. Empty → `login` reports UPLINK NOT CONFIGURED. For an
+      # offline fake GitHub, layer compose.github-stub.yml on top.
       GitHub__ClientId: ${GITHUB_CLIENT_ID:-}
-      GitHub__ClientSecret: ${GITHUB_CLIENT_SECRET:-}
     ports:
       - "5210:8080"
     depends_on:

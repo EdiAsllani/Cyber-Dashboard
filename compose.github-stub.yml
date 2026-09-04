@@ -1,0 +1,34 @@
+# Offline GitHub: a fake github.com + api.github.com the relay talks to
+# instead of the real thing. No OAuth app, no account, no network needed —
+# the whole device ceremony runs against tools/github-stub/server.mjs and the
+# "approve" page lives at http://localhost:9797/login/device.
+#
+# Usage (merge convention — docs/research/04-devops.md §5):
+#   docker compose -f docker-compose.yml -f compose.github-stub.yml up --build --watch
+#
+# Everything else (Postgres, wallet, cookies) is the real code path. Never
+# use this in anything resembling production: every token it issues is fake.
+
+services:
+  github-stub:
+    image: node:24-alpine
+    command: ["node", "/stub/server.mjs"]
+    working_dir: /stub
+    volumes:
+      - ./tools/github-stub:/stub:ro
+    environment:
+      PORT: "9797"
+      PUBLIC_URL: http://localhost:9797
+      STUB_LOGIN: ${GITHUB_STUB_LOGIN:-v-netrunner}
+      STUB_INTERVAL: "1"
+    ports:
+      - "9797:9797"
+
+  server:
+    environment:
+      GitHub__ClientId: stub-client-id
+      GitHub__OAuthBaseUrl: http://github-stub:9797
+      GitHub__ApiBaseUrl: http://github-stub:9797
+    depends_on:
+      github-stub:
+        condition: service_started
