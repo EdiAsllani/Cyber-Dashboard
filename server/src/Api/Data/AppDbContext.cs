@@ -1,14 +1,19 @@
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Api.Data;
 
-public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
+public class AppDbContext(DbContextOptions<AppDbContext> options)
+    : DbContext(options), IDataProtectionKeyContext
 {
     public DbSet<User> Users => Set<User>();
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<Budget> Budgets => Set<Budget>();
     public DbSet<UserSetting> UserSettings => Set<UserSetting>();
+    /// <summary>Data Protection key ring — lives in Postgres so cookies and
+    /// vaulted GitHub tokens survive a container rebuild.</summary>
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -17,6 +22,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Handle).HasMaxLength(64);
             e.Property(x => x.GitHubLogin).HasMaxLength(128);
             e.Property(x => x.AvatarUrl).HasMaxLength(512);
+            e.Property(x => x.GitHubTokenCipher).HasMaxLength(1024);
             e.HasIndex(x => x.GitHubId).IsUnique();
         });
 

@@ -13,7 +13,9 @@ public record FundRequest(decimal Amount);
 
 public record SetSettingRequest(string Value);
 
-public record MeDto(string Handle, string? GitHubLogin, string Provider, string Alias);
+public record MeDto(
+    string Handle, string? GitHubLogin, string? AvatarUrl, DateTime? GitHubLinkedAt,
+    string Provider, string Alias);
 
 public record SalaryStatusDto(
     decimal Amount, string Cadence, string Window, bool Claimable, bool ForceAvailable);

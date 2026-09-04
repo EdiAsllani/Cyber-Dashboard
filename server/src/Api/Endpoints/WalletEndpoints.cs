@@ -3,15 +3,16 @@ using Api.Wallet;
 namespace Api.Endpoints;
 
 /// <summary>
-/// ARCHITECTURE §6 — wallet, budgets, config, me. Session auth arrives in
-/// Phase 5; until then every route acts as the seeded dev user. The client
-/// sends `X-Timezone` (IANA) for D-11 window math; invalid/missing → UTC.
+/// ARCHITECTURE §6 — wallet, budgets, config, me. Every route needs the
+/// session cookie (D-06); without it the cookie handler answers 401 JSON
+/// before any handler runs. The client sends `X-Timezone` (IANA) for D-11
+/// window math; invalid/missing → UTC.
 /// </summary>
 public static class WalletEndpoints
 {
     public static void MapWallet(this IEndpointRouteBuilder app)
     {
-        var api = app.MapGroup("/api");
+        var api = app.MapGroup("/api").RequireAuthorization();
 
         api.MapGet("/me", (WalletService w, CancellationToken ct) => w.MeAsync(ct));
 

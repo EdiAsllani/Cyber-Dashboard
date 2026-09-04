@@ -14,10 +14,17 @@ public class User
 {
     public Guid Id { get; set; }
     public string Handle { get; set; } = "";
-    /// <summary>Null until Phase 5 links a GitHub identity (D-06).</summary>
+    /// <summary>
+    /// Null only for the unclaimed dev seed (D-06): the first GitHub login
+    /// through the door claims that row and its ledger (Phase 5 plan §3).
+    /// </summary>
     public long? GitHubId { get; set; }
     public string? GitHubLogin { get; set; }
     public string? AvatarUrl { get; set; }
+    /// <summary>The GitHub access token, Data-Protection encrypted (D-14). Never leaves the server.</summary>
+    public string? GitHubTokenCipher { get; set; }
+    public DateTime? GitHubLinkedAt { get; set; }
+    public DateTime? LastLoginAt { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 

@@ -1,3 +1,4 @@
+using Api.Auth;
 using Api.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,27 +7,20 @@ namespace Api.Wallet;
 /// <summary>
 /// The one transactional owner of every balance mutation (ARCHITECTURE §5).
 /// Each operation is a single SaveChanges (atomic), with xmin tokens turning
-/// racing writers into DbUpdateConcurrencyException → 409. Until Phase 5 auth,
-/// "current user" is the seeded dev user.
+/// racing writers into DbUpdateConcurrencyException → 409. "Current user" is
+/// the cookie session (D-06) — the routes are behind RequireAuthorization.
 /// </summary>
-public sealed class WalletService(AppDbContext db)
+public sealed class WalletService(AppDbContext db, CurrentUser current)
 {
     private const decimal MaxAmount = 10_000_000m;
 
-    // ---- current user (Phase 5 replaces this with the session identity) ----
-
-    private async Task<(User User, Account Account)> CurrentAsync(CancellationToken ct)
-    {
-        var user = await db.Users.OrderBy(u => u.CreatedAt).FirstOrDefaultAsync(ct)
-            ?? throw new WalletError(500, "NO_USER", "no user seeded — dev database expected");
-        var account = await db.Accounts.SingleAsync(a => a.UserId == user.Id, ct);
-        return (user, account);
-    }
+    private Task<(User User, Account Account)> CurrentAsync(CancellationToken ct) => current.LoadAsync(ct);
 
     public async Task<MeDto> MeAsync(CancellationToken ct)
     {
         var (user, account) = await CurrentAsync(ct);
-        return new MeDto(user.Handle, user.GitHubLogin, account.Provider, account.Alias);
+        return new MeDto(user.Handle, user.GitHubLogin, user.AvatarUrl, user.GitHubLinkedAt,
+            account.Provider, account.Alias);
     }
 
     // ---- wallet ----
@@ -55,7 +49,7 @@ public sealed class WalletService(AppDbContext db)
         ValidateAmount(amount);
         var (_, account) = await CurrentAsync(ct);
         if (account.Balance < amount)
-            throw WalletError.Conflict("OVERDRAFT", "insufficient funds",
+            throw ApiError.Conflict("OVERDRAFT", "insufficient funds",
                 new { balance = account.Balance, attempted = amount });
         var tx = Write(account, -amount, TransactionKind.Pay, memo ?? "unlogged debit");
         await db.SaveChangesAsync(ct);
@@ -89,12 +83,12 @@ public sealed class WalletService(AppDbContext db)
         }
         else if (!force)
         {
-            throw WalletError.Conflict("SALARY_ALREADY_CLAIMED", "salary already claimed this window",
+            throw ApiError.Conflict("SALARY_ALREADY_CLAIMED", "salary already claimed this window",
                 new { window, cadence });
         }
         else if (SalaryWindow.SameWindow(account.SalaryLastForcedAt, now, cadence, tz))
         {
-            throw WalletError.Conflict("SALARY_FORCE_EXHAUSTED", "force claim already used this window",
+            throw ApiError.Conflict("SALARY_FORCE_EXHAUSTED", "force claim already used this window",
                 new { window, cadence });
         }
         else
@@ -118,7 +112,7 @@ public sealed class WalletService(AppDbContext db)
         if (kind is not null)
         {
             if (!Enum.TryParse<TransactionKind>(kind, ignoreCase: true, out var k))
-                throw WalletError.Invalid("INVALID_FILTER", $"unknown kind '{kind}'",
+                throw ApiError.Invalid("INVALID_FILTER", $"unknown kind '{kind}'",
                     new { allowed = Enum.GetNames<TransactionKind>() });
             q = q.Where(t => t.Kind == k);
         }
@@ -198,7 +192,7 @@ public sealed class WalletService(AppDbContext db)
     {
         var trimmed = name.Trim();
         if (trimmed.Length is < 1 or > 64)
-            throw WalletError.Invalid("INVALID_NAME", "budget name must be 1..64 chars");
+            throw ApiError.Invalid("INVALID_NAME", "budget name must be 1..64 chars");
         ValidateAmount(target);
         var (user, _) = await CurrentAsync(ct);
         var seq = (await db.Budgets.Where(b => b.UserId == user.Id)
@@ -221,13 +215,13 @@ public sealed class WalletService(AppDbContext db)
         var (user, account) = await CurrentAsync(ct);
         var budget = await FindBudgetAsync(user.Id, seq, ct);
         if (budget.Status != BudgetStatus.Active)
-            throw WalletError.Conflict("BUDGET_NOT_ACTIVE",
+            throw ApiError.Conflict("BUDGET_NOT_ACTIVE",
                 $"budget is {budget.Status}", new { status = budget.Status.ToString() });
 
         var remaining = budget.TargetAmount - budget.FundedAmount;
         var moved = Math.Min(amount, remaining);
         if (account.Balance < moved)
-            throw WalletError.Conflict("OVERDRAFT", "insufficient funds",
+            throw ApiError.Conflict("OVERDRAFT", "insufficient funds",
                 new { balance = account.Balance, attempted = moved });
 
         Write(account, -moved, TransactionKind.BudgetFund, $"escrow: {budget.Name}", budget.Id);
@@ -250,7 +244,7 @@ public sealed class WalletService(AppDbContext db)
         var (user, account) = await CurrentAsync(ct);
         var budget = await FindBudgetAsync(user.Id, seq, ct);
         if (budget.Status == BudgetStatus.Cancelled)
-            throw WalletError.Conflict("BUDGET_NOT_ACTIVE", "budget already cancelled",
+            throw ApiError.Conflict("BUDGET_NOT_ACTIVE", "budget already cancelled",
                 new { status = budget.Status.ToString() });
 
         var refund = budget.FundedAmount;
@@ -268,7 +262,7 @@ public sealed class WalletService(AppDbContext db)
         var (user, _) = await CurrentAsync(ct);
         var budget = await FindBudgetAsync(user.Id, seq, ct);
         if (await db.Transactions.AnyAsync(t => t.BudgetId == budget.Id, ct))
-            throw WalletError.Conflict("BUDGET_HAS_HISTORY",
+            throw ApiError.Conflict("BUDGET_HAS_HISTORY",
                 "budget has transactions — cancel it instead");
         db.Remove(budget);
         await db.SaveChangesAsync(ct);
@@ -289,10 +283,10 @@ public sealed class WalletService(AppDbContext db)
     public async Task<SettingDto> SetSettingAsync(string key, string value, CancellationToken ct)
     {
         var def = SettingsRegistry.Find(key)
-            ?? throw WalletError.Invalid("UNKNOWN_SETTING", $"unknown key '{key}'",
+            ?? throw ApiError.Invalid("UNKNOWN_SETTING", $"unknown key '{key}'",
                 new { known = SettingsRegistry.All.Select(d => d.Key) });
         var normalized = def.Normalize(value)
-            ?? throw WalletError.Invalid("INVALID_SETTING_VALUE",
+            ?? throw ApiError.Invalid("INVALID_SETTING_VALUE",
                 $"invalid value for {def.Key}", new { allowed = def.Allowed });
         await ApplyAsync(def, normalized, ct);
         return ToDto(def, normalized);
@@ -301,7 +295,7 @@ public sealed class WalletService(AppDbContext db)
     public async Task<SettingDto> ResetSettingAsync(string key, CancellationToken ct)
     {
         var def = SettingsRegistry.Find(key)
-            ?? throw WalletError.Invalid("UNKNOWN_SETTING", $"unknown key '{key}'",
+            ?? throw ApiError.Invalid("UNKNOWN_SETTING", $"unknown key '{key}'",
                 new { known = SettingsRegistry.All.Select(d => d.Key) });
         await ApplyAsync(def, def.Default, ct);
         return ToDto(def, def.Default);
@@ -336,7 +330,7 @@ public sealed class WalletService(AppDbContext db)
     private static void ValidateAmount(decimal amount)
     {
         if (amount <= 0 || amount > MaxAmount || decimal.Round(amount, 2) != amount)
-            throw WalletError.Invalid("INVALID_AMOUNT",
+            throw ApiError.Invalid("INVALID_AMOUNT",
                 "amount must be positive, max 2 decimals, at most 10,000,000",
                 new { attempted = amount });
     }
@@ -360,7 +354,7 @@ public sealed class WalletService(AppDbContext db)
 
     private async Task<Budget> FindBudgetAsync(Guid userId, int seq, CancellationToken ct) =>
         await db.Budgets.SingleOrDefaultAsync(b => b.UserId == userId && b.Seq == seq, ct)
-            ?? throw WalletError.NotFound("BUDGET_NOT_FOUND", $"no budget #{seq}");
+            ?? throw ApiError.NotFound("BUDGET_NOT_FOUND", $"no budget #{seq}");
 
     private static TransactionDto ToDto(Transaction t, int? budgetSeq) =>
         new(t.Kind.ToString(), t.Amount, t.Memo, budgetSeq, t.CreatedAt);

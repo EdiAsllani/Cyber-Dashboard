@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Api.Data;
 
 namespace Api.Wallet;
@@ -7,9 +8,10 @@ namespace Api.Wallet;
 /// D-13: the config surface is a *registry*, not a free-form KV store — only
 /// these keys exist, each typed, validated and defaulted. Column-backed keys
 /// (alias, salary amount) read/write the Account row; the rest live in
-/// UserSetting. WalletService is the only caller.
+/// UserSetting. WalletService is the only caller. Namespaces: `wallet.*`
+/// (Phase 4), `repo.*` (Phase 5).
 /// </summary>
-public static class SettingsRegistry
+public static partial class SettingsRegistry
 {
     public sealed record Def(
         string Key,
@@ -64,7 +66,22 @@ public static class SettingsRegistry
             v => int.TryParse(v.Trim(), out var n) && n is >= 1 and <= 50
                 ? n.ToString(CultureInfo.InvariantCulture)
                 : null),
+        // D-14: which repository the dashboard tracks is config, not auth.
+        // Empty means unset — REPO.NET commands then insist on an argument.
+        new(
+            "repo.default",
+            "repository REPO.NET commands fall back to",
+            "owner/name or name (reset = unset)",
+            "",
+            v =>
+            {
+                var t = v.Trim();
+                return RepoRef().IsMatch(t) ? t : null;
+            }),
     ];
+
+    [GeneratedRegex("^[A-Za-z0-9_.-]{1,100}(/[A-Za-z0-9_.-]{1,100})?$")]
+    private static partial Regex RepoRef();
 
     public static Def? Find(string key) =>
         All.FirstOrDefault(d => d.Key.Equals(key.Trim(), StringComparison.OrdinalIgnoreCase));
