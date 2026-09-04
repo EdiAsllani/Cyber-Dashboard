@@ -64,7 +64,10 @@ export function useDenMaterials(reveal: THREE.IUniform<number>): DenMaterials {
         reveal,
       ),
       desk: createDissolveMaterial({ color: '#080808', roughness: 0.6, metalness: 0.3 }, reveal),
-      metal: createDissolveMaterial({ color: '#161616', roughness: 0.6, metalness: 0.5 }, reveal),
+      // A shade above the plan's #161616 for the same reason gunmetal is: the
+      // ceiling ducts and wall cables live outside both lamps' reach, and at
+      // #161616 they were black shapes on a black ceiling.
+      metal: createDissolveMaterial({ color: '#26282c', roughness: 0.55, metalness: 0.5 }, reveal),
       keycap: createDissolveMaterial(
         { color: '#151515', roughness: 0.75, metalness: 0.1 },
         reveal,

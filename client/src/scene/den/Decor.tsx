@@ -267,8 +267,8 @@ function ServerRack({
       dummy.updateMatrix()
       m.setMatrixAt(i, dummy.matrix)
       // 85% red family, 15% cyan — the same accent ratio as the tunnel.
-      const cyan = i % 7 === 3
-      m.setColorAt(i, cyan ? LED_CYAN : i % 3 === 0 ? LED_RED : LED_DIM)
+      // Cyan studs start lit; a third of the reds do.
+      m.setColorAt(i, ledColor(i, i % 7 === 3 || i % 3 === 0))
     }
     m.instanceMatrix.needsUpdate = true
     if (m.instanceColor) m.instanceColor.needsUpdate = true
@@ -306,6 +306,17 @@ function ServerRack({
 const LED_RED = new THREE.Color(1.6, 0.02, 0.12)
 const LED_DIM = new THREE.Color(0.5, 0.01, 0.05)
 const LED_CYAN = new THREE.Color(0.04, 1.1, 1.4)
+const LED_CYAN_DIM = new THREE.Color(0.015, 0.32, 0.42)
+
+/**
+ * A stud's colour, given whether it is currently lit. Index decides the family
+ * (the same 85/15 red/cyan split as the initial layout), so the act's blink can
+ * flip brightness without ever turning a cyan stud red.
+ */
+export function ledColor(i: number, lit: boolean): THREE.Color {
+  if (i % 7 === 3) return lit ? LED_CYAN : LED_CYAN_DIM
+  return lit ? LED_RED : LED_DIM
+}
 
 /**
  * Two posters. No imagery: a dark panel over a slightly larger emissive one,
@@ -315,7 +326,9 @@ const LED_CYAN = new THREE.Color(0.04, 1.1, 1.4)
 function Posters({ mats }: { mats: DenMaterials }) {
   return (
     <>
-      <group position={[-INNER + 0.03, 1.85, -1.1]} rotation={[0, Math.PI / 2, 0]}>
+      {/* Clear of the left wall's sign: the plate of WE HAVE A CITY TO BURN
+          spans z -1.89..0.09, and the poster sat in front of its copy. */}
+      <group position={[-INNER + 0.03, 1.75, 0.9]} rotation={[0, Math.PI / 2, 0]}>
         <mesh material={mats.underglow}>
           <planeGeometry args={[0.78, 1.08]} />
         </mesh>
