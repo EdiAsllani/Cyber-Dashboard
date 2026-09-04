@@ -13,7 +13,9 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
-    await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+    await DevSeeder.SeedAsync(db);
 }
 
 app.MapGet("/api/health", async (AppDbContext db, CancellationToken ct) =>
