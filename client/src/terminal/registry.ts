@@ -1,3 +1,4 @@
+import { api } from './api'
 import type { Command, CommandCtx, TerminalLine } from './types'
 
 /**
@@ -47,7 +48,20 @@ const BASE: Command[] = [
     name: 'whoami',
     args: '',
     help: 'current operator',
-    run: () => [{ text: 'edi // netrunner-1' }],
+    run: async () => {
+      try {
+        const me = await api.me()
+        return [
+          { text: `${me.handle} // ${me.alias.toLowerCase()} @ ${me.provider.toLowerCase()}` },
+          {
+            text: me.gitHubLogin ? `github :: ${me.gitHubLogin}` : 'github :: NOT LINKED (Phase 5)',
+            kind: 'dim' as const,
+          },
+        ]
+      } catch {
+        return [{ text: 'edi // netrunner-1 (offline)' }]
+      }
+    },
   },
   {
     name: 'echo',
