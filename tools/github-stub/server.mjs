@@ -75,7 +75,13 @@ function makeRepo(def) {
     created_at: new Date(Date.now() - (i + 1) * 86400e3).toISOString(),
     updated_at: new Date(Date.now() - (i + 1) * 3600e3 * 5).toISOString(),
   }))
-  return { ...def, commits, pulls }
+  // Timestamps are fixed at boot (and on bump), never per request — otherwise
+  // every response would carry a new ETag and the relay could never see a 304.
+  return {
+    ...def, commits, pulls,
+    pushedAt: new Date(Date.now() - def.pushedHoursAgo * 3600e3).toISOString(),
+    createdAt: new Date(Date.now() - def.createdDaysAgo * 86400e3).toISOString(),
+  }
 }
 
 const repos = new Map(
@@ -102,8 +108,8 @@ function repoJson(r, full) {
     watchers_count: r.stars,
     open_issues_count: r.prsOpen + 2,
     language: r.language,
-    pushed_at: new Date(Date.now() - r.pushedHoursAgo * 3600e3).toISOString(),
-    created_at: new Date(Date.now() - r.createdDaysAgo * 86400e3).toISOString(),
+    pushed_at: r.pushedAt,
+    created_at: r.createdAt,
   }
   return full ? { ...base, subscribers_count: r.watchers } : base
 }
@@ -268,6 +274,7 @@ const server = createServer(async (req, res) => {
       const sha = createHash('sha1').update(`${r.name}:bump:${Date.now()}`).digest('hex')
       r.commits.unshift({ sha, html_url: `https://github.com/${LOGIN}/${r.name}/commit/${sha}`, commit: { message: `chore: bump #${r.commits.length + 1}`, author: { name: 'Edi Asllani', date: new Date().toISOString() } }, author: { login: LOGIN } })
       r.pushedHoursAgo = 0
+      r.pushedAt = new Date().toISOString()
       return send(req, res, 200, { commits: r.commits.length })
     }
     const [, d] = findByUserCode(body.user_code)
@@ -289,7 +296,7 @@ const server = createServer(async (req, res) => {
     return sendJsonCached(req, res, { id: USER_ID, login: LOGIN, avatar_url: `https://avatars.githubusercontent.com/u/${USER_ID}?v=4`, name: 'Edi Asllani', type: 'User' }, 'core')
   }
   if (url.pathname === '/user/repos') {
-    const list = [...repos.values()].sort((a, b) => a.pushedHoursAgo - b.pushedHoursAgo).map((r) => repoJson(r, false))
+    const list = [...repos.values()].sort((a, b) => (a.pushedAt < b.pushedAt ? 1 : -1)).map((r) => repoJson(r, false))
     return sendJsonCached(req, res, list, 'core')
   }
   const m = /^\/repos\/([^/]+)\/([^/]+)(\/(commits|pulls))?$/.exec(url.pathname)

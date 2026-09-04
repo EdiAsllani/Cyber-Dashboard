@@ -26,7 +26,7 @@ flowchart LR
 
 **One origin.** The browser only ever talks to the Vite origin (`localhost:5173`); Vite proxies `/api` to the API container. That makes plain `SameSite=Lax` cookie auth work with zero CORS configuration. In production the API serves the built SPA itself (same idea, one container).
 
-**The API is the only thing holding secrets.** GitHub OAuth token never reaches the browser; the SPA only ever sees JSON shaped by our API.
+**The API is the only thing holding secrets.** GitHub OAuth token never reaches the browser (it is encrypted at rest on the user row); the SPA only ever sees JSON shaped by our API. There is no client secret at all — the device flow (D-14) needs only the public client id.
 
 ---
 
@@ -106,8 +106,9 @@ server/
 
 - **Minimal APIs**, feature-folder layout, one endpoint-mapping extension per feature.
 - **Wallet invariants live server-side** (balance can't go negative, budget escrow/refund is transactional). Client parses commands; server enforces rules.
-- **GitHub service:** thin typed `HttpClient` against the REST API (Octokit hides Link headers and lacks ETag support — research 03 §4), optionally one GraphQL query for commit/PR totals; per-user in-memory cache (60s TTL) + ETag conditional requests (authorized 304s are rate-limit-free).
-- **Salary:** `salary` command claims a configured amount with a cooldown (e.g. claimable when `now - lastClaim ≥ 30 days`, or a dev-friendly shorter period). No background scheduler needed for v1.
+- **GitHub service** (`Repos/GitHubApiClient`): thin typed `HttpClient` against the REST API (Octokit hides Link headers and lacks ETag support — research 03 §4) plus one GraphQL query for commit/PR totals; per-user in-memory cache, fresh for 60 s (HIT), then `If-None-Match` revalidation (a 304 is REVALIDATED and rate-limit-free), else MISS. Every round trip is logged with the verdict and the remaining rate budget; every `/api/repos/*` response carries `X-Cache`. Base URLs are configurable so `tools/github-stub` can stand in for GitHub offline.
+- **Auth** (`Auth/`): cookie session; GitHub connected through the OAuth *device flow* (§8). The access token is Data-Protection encrypted on the user row; the key ring lives in Postgres so a container rebuild keeps sessions and tokens valid.
+- **Salary:** calendar windows in the user's timezone with one `--force` per window (D-11) — no background scheduler.
 
 ---
 
@@ -124,9 +125,12 @@ erDiagram
     USER {
         guid Id PK
         string Handle
-        long GitHubId "nullable until linked"
+        long GitHubId "null only for the unclaimed dev seed"
         string GitHubLogin
         string AvatarUrl
+        string GitHubTokenCipher "Data-Protection encrypted access token"
+        datetime GitHubLinkedAt
+        datetime LastLoginAt
         datetime CreatedAt
     }
     ACCOUNT {
@@ -172,7 +176,9 @@ erDiagram
 
 **Settings registry (D-13):** only known keys are accepted, each with a type, validation, and default. `wallet.account.alias` and `wallet.salary.amount` write through to `ACCOUNT` columns; `wallet.salary.cadence` and `wallet.history.pagesize` live in `USER_SETTING`. Mutations require the terminal's `sudo` prefix (themed `PERMISSION DENIED` without it).
 
-Concurrency: balance updates go through one transactional service method; Postgres `xmin` as EF concurrency token as a belt-and-suspenders.
+**Identity (D-06, Phase 5):** a user is a GitHub identity. On a completed login: a user with that `GitHubId` is refreshed; else the oldest *unlinked* user (the dev seed) is **claimed** — its Phase 4 ledger becomes this identity's wallet; else a new user + account is created with one `Income` row of €$ 2,077.00 ("welcome bonus"), so conservation holds from the first row. `Handle` is set to the GitHub login.
+
+Concurrency: balance updates go through one transactional service method; Postgres `xmin` as EF concurrency token as a belt-and-suspenders. The `DataProtectionKeys` table (ASP.NET Data Protection key ring) also lives here.
 
 ---
 
@@ -180,10 +186,10 @@ Concurrency: balance updates go through one transactional service method; Postgr
 
 | Method & path | Purpose |
 |---|---|
-| `GET /api/auth/github/login` | begin OAuth (redirect) |
-| `GET /api/auth/github/callback` | complete OAuth, set session cookie, bounce to SPA |
-| `POST /api/auth/logout` | kill session |
-| `GET /api/me` | session user + account summary |
+| `POST /api/auth/github/device/start` | begin the device flow → `{ handle, userCode, verificationUri, expiresIn, interval }` (anonymous) |
+| `POST /api/auth/github/device/poll` | `{ handle }` → `{ status: pending \| complete, retryIn?, user? }`; completion sets the session cookie (anonymous) |
+| `POST /api/auth/logout` | kill session (anonymous, idempotent) |
+| `GET /api/me` | session user (handle, GitHub login/avatar/linkedAt) + account summary |
 | `GET /api/wallet` | balance, alias, provider, salary status (window, claim/force availability) |
 | `POST /api/wallet/pay` | `{ amount, memo? }` → debit |
 | `POST /api/wallet/income` | `{ amount, memo? }` → credit |
@@ -198,11 +204,13 @@ Concurrency: balance updates go through one transactional service method; Postgr
 | `GET /api/config` | settings registry: keys, values, defaults |
 | `PUT /api/config/{key}` | `{ value }` — validated against the registry |
 | `DELETE /api/config/{key}` | reset key to default |
-| `GET /api/repos` | user's repos (name, stars, updated) |
-| `GET /api/repos/{owner}/{name}/summary` | latest commit, total commits, open PRs, total PRs |
-| `GET /api/repos/rate` | remaining GitHub rate budget (flavor + debugging) |
+| `GET /api/repos` | owned repos, most recently pushed first (name, stars, forks, language, pushed) |
+| `GET /api/repos/{owner}/{name}/summary` | repo card + latest commit + totals (commits, PRs open/closed/merged) |
+| `GET /api/repos/{owner}/{name}/commits?take=` | default-branch commit total + the last `take` (≤ 25) |
+| `GET /api/repos/{owner}/{name}/pulls?take=` | open PRs (≤ 25) + open/closed/merged totals |
+| `GET /api/repos/rate` | live GitHub rate budget for core / search / graphql (never cached) |
 
-All wallet/budget/repo routes require the session cookie; unauthenticated calls get `401` which the terminal renders as `ACCESS DENIED — run: login`. *(Until Phase 5 auth lands, wallet/budget/config routes resolve the seeded dev user.)*
+All wallet/budget/config/repo routes require the session cookie; unauthenticated calls get `401 { code: "ACCESS_DENIED" }` which the terminal renders as `ACCESS DENIED — run: login`. A stored GitHub token GitHub no longer honours surfaces as `401 UPLINK_REVOKED` — same remedy. Repo responses carry `X-Cache: HIT | REVALIDATED | MISS | BYPASS`.
 
 Wallet errors are 4xx JSON `{ code, message, meta? }` — the server owns the invariant, the client owns the drama (D-03): codes like `OVERDRAFT`, `SALARY_ALREADY_CLAIMED`, `SALARY_FORCE_EXHAUSTED` map to themed terminal output client-side. The client sends `X-Timezone` (IANA) on every request for D-11 window math.
 
@@ -232,24 +240,30 @@ Wallet errors are 4xx JSON `{ code, message, meta? }` — the server owns the in
 ### REPO.NET
 | Command | Effect |
 |---|---|
-| `login` / `logout` | GitHub OAuth in popup/redirect |
-| `repos` | list repos (paged) |
-| `repo <name>` | summary card: default branch, stars, last push |
-| `latest <name>` | latest commit: sha, author, message, when |
-| `commits <name>` | total commit count (+ last 5) |
-| `prs <name> [--all]` | open PRs (default) or totals open/closed/merged |
-| `rate` | GitHub API rate remaining |
+| `login` / `logout` | GitHub device flow inside the CRT (D-14) / burn the session — available in *both* terminals |
+| `repos [n] [--all]` | owned repos: name, ★, language, pushed |
+| `repo [name]` | summary card: branch, stars/forks/watchers/issues, latest commit, totals |
+| `latest [name]` | latest commit: sha, author, message, when |
+| `commits [name]` | total on the default branch + last 5 |
+| `prs [name] [--all]` | open PRs (default) or totals open/closed/merged |
+| `rate` | GitHub API budget left (core / search / graphql) |
+| `config …` / `sudo config …` | the same registry as WALLET.SYS, incl. `repo.default` |
 
-Shared niceties: unknown command → glitchy `COMMAND NOT RECOGNIZED`, `Tab` completion, `↑` history, boot banner per OS.
+`[name]` is `owner/name`, or a bare `name` under the operator's GitHub login; omitted, it falls back to the `repo.default` config key (D-14). Every repo answer ends with the relay's cache verdict.
+
+Shared niceties: unknown command → glitchy `COMMAND NOT RECOGNIZED`, `Tab` completion, `↑` history, boot banner per OS, a motd after the banner naming the operator — or `ACCESS DENIED — run: login`.
 
 ---
 
 ## 8. Auth flow (BFF-style)
 
-1. Terminal `login` → SPA hits `GET /api/auth/github/login` → ASP.NET OAuth handler redirects to GitHub (`read:user` + `repo` scopes — see DECISIONS D-02).
-2. Callback: server exchanges code, **stores the access token server-side** (encrypted via ASP.NET Data Protection, in the user row or auth properties), issues the app session cookie (`HttpOnly`, `SameSite=Lax`).
-3. First login upserts `USER` + seeds `ACCOUNT` (starting balance, e.g. €2,077.00 — theme wink) so the wallet works immediately.
-4. SPA never sees GitHub tokens; it calls `/api/repos/*` and the server proxies with the stored token + caching.
+*Reworked for D-14 (device flow) in Phase 5. No redirects, no callback URL, no client secret — the whole ceremony stays inside the CRT.*
+
+1. Terminal `login` → `POST /api/auth/github/device/start` → the server asks GitHub for a device code (`read:user repo` — D-02) and keeps the real `device_code` in memory behind an opaque handle → the terminal prints `ENTER CODE XXXX-XXXX AT github.com/login/device`, copies the code to the clipboard and opens the page (both best-effort).
+2. The terminal polls `POST /api/auth/github/device/poll { handle }` at GitHub's interval; the server enforces that interval itself and honours `slow_down`. Pending answers are `{ status: "pending" }`; expiry / denial are typed 4xx codes.
+3. On approval the server exchanges the device code for the access token, fetches `/user`, and in one transaction upserts the user (**claiming** the unlinked dev seed on first login, else creating an account with the €$ 2,077.00 welcome row — §5), **vaults the token** (Data-Protection encrypted in `USER.GitHubTokenCipher`; key ring in Postgres) and issues the session cookie (`blackwall.sid`, `HttpOnly`, `SameSite=Lax`, 30-day sliding). The poll returns `{ status: "complete", user }` → `UPLINK ESTABLISHED`.
+4. The SPA never sees GitHub tokens; it calls `/api/repos/*` and the server calls GitHub with the vaulted token through the cache. `logout` signs the cookie out; the ledger stays.
+5. Offline: `compose.github-stub.yml` points both GitHub base URLs at `tools/github-stub`, which runs the same ceremony with an approve page at `localhost:9797/login/device`.
 
 ---
 

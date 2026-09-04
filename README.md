@@ -2,7 +2,7 @@
 
 > A scroll-driven 3D dashboard styled after Cyberpunk 2077 — the Blackwall, Arasaka red/black, and in-world terminals. You scroll *through* the Blackwall, land in a netrunner's den, and run your life from the monitors on the desk.
 
-**Status: `PHASE 3 — THE DEN IS LIVE`** — the placeholder shell is now a decorated netrunner den (vents, wall wires, neon quote signs, server rack, desk props) with both monitors idling on `INTERLINKED`; hover a screen, click, and the camera dollies into a CRT terminal (`WALLET.SYS` / `REPO.NET`, mock commands), ESC backs out. Next up: real wallet data behind the terminal ([docs/ROADMAP.md](docs/ROADMAP.md)).
+**Status: `PHASE 5 — REPO.NET + AUTH`** — both terminals are live. `login` runs the GitHub *device flow* inside the CRT (`ENTER CODE XXXX-XXXX AT github.com/login/device` → `UPLINK ESTABLISHED`); the session is a cookie, the GitHub token never leaves the server. `WALLET.SYS` is the Phase 4 ledger behind that login; `REPO.NET` reads your real repositories through a 60 s cache with ETag revalidation (`repos`, `repo`, `latest`, `commits`, `prs`, `rate`). No GitHub app yet? A fake GitHub ships in the repo for offline dev. Next up: polish & ship ([docs/ROADMAP.md](docs/ROADMAP.md)).
 
 ---
 
@@ -30,7 +30,7 @@ Clicking a monitor dollies the camera into the screen and boots a terminal:
 | 3D / Frontend | React + TypeScript + Vite, three.js via **react-three-fiber** (+ drei, postprocessing), GSAP ScrollTrigger for the scroll rig, zustand for state |
 | Backend | **ASP.NET Core 10** minimal APIs, EF Core 10 |
 | Database | PostgreSQL |
-| Auth | GitHub OAuth → cookie session (BFF style) |
+| Auth | GitHub OAuth **device flow** from the terminal → cookie session (BFF style); token encrypted at rest, keys in Postgres |
 | Infra | Docker Compose (dev hot-reload via compose watch), single origin via Vite proxy |
 
 ## Repo layout
@@ -43,26 +43,53 @@ Clicking a monitor dollies the camera into the screen and boots a terminal:
 │       ├── scene/          # acts + GLSL materials
 │       ├── fx/             # postFX chain, quality tiers
 │       └── ui/             # boot screen, HUD, debug tooling
-├── server/                 # ASP.NET Core 10 API           (Phase 1)
+│       ├── terminal/       # CRT core + WALLET.SYS / REPO.NET skins
+│       └── api/            # (in terminal/api.ts) typed fetch client
+├── server/src/Api/         # ASP.NET Core 10 API
+│   ├── Auth/               # device flow, cookie session, seed claim, token vault
+│   ├── Wallet/             # ledger, budgets, salary windows, settings registry
+│   ├── Repos/              # GitHub client (60s cache + ETags), REPO.NET endpoints
+│   └── Data/               # DbContext, entities, migrations, dev seeder
+├── tools/github-stub/      # fake github.com + api.github.com for offline dev
 ├── docs/
 │   ├── ARCHITECTURE.md     # system design, data model, command spec
 │   ├── ROADMAP.md          # build phases + acceptance criteria
 │   ├── DECISIONS.md        # decision log (ADR-lite)
 │   └── research/           # Phase 0 deep-research notes + resources
 ├── docker-compose.yml      # dev environment (compose watch)
-└── .env.example            # copy to .env, fill in secrets
+├── compose.github-stub.yml # overlay: point the API at the fake GitHub
+└── .env.example            # copy to .env, fill in the GitHub client id
 ```
 
 ## Running
 
+**With a GitHub OAuth app** (2 minutes at https://github.com/settings/developers —
+tick **Enable Device Flow**; the callback URL is unused, and there is no client
+secret in this flow):
+
 ```bash
-cp .env.example .env   # then fill in GitHub OAuth credentials
+cp .env.example .env   # set GITHUB_CLIENT_ID
 docker compose up --build --watch
+```
+
+**Without one** — the offline fake GitHub (`tools/github-stub/`) stands in for
+github.com *and* api.github.com. The device ceremony is real, the approve
+page is at http://localhost:9797/login/device, the repos are fake:
+
+```bash
+docker compose -f docker-compose.yml -f compose.github-stub.yml up --build --watch
 ```
 
 - Client: http://localhost:5173 (Vite dev server, proxies `/api` → server)
 - API: http://localhost:5210
 - Postgres: localhost:5432
+- Fake GitHub (stub overlay only): http://localhost:9797
+
+Then in either terminal: `login`. GitHub is the only key (D-06) — until you
+log in, every wallet and repo command answers `ACCESS DENIED — run: login`.
+The first GitHub identity to log in on a fresh dev database inherits the
+seeded ledger; later identities get a fresh account with a €$ 2,077.00
+welcome bonus.
 
 > **Always start it with `--watch`, and rebuild after pulling.** Both `dev`
 > images bake a snapshot of the source at build time (`COPY . .`); compose

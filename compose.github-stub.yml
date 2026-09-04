@@ -20,6 +20,7 @@ services:
       PORT: "9797"
       PUBLIC_URL: http://localhost:9797
       STUB_LOGIN: ${GITHUB_STUB_LOGIN:-v-netrunner}
+      STUB_USER_ID: ${GITHUB_STUB_USER_ID:-2077}
       STUB_INTERVAL: "1"
     ports:
       - "9797:9797"
