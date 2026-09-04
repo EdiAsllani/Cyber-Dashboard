@@ -16,6 +16,7 @@ import {
 } from './constants'
 import { Strut } from './Strut'
 import type { DenMaterials } from './materials'
+import type { Quality } from '../../state/journey'
 import type { InstancedMesh } from 'three'
 
 /**
@@ -29,7 +30,7 @@ import type { InstancedMesh } from 'three'
  * Screen meshes live here for now with a flat emissive material; Task 5 swaps
  * them for the INTERLINKED canvas feed and the click targets.
  */
-export function Desk({ mats }: { mats: DenMaterials }) {
+export function Desk({ mats, quality }: { mats: DenMaterials; quality: Quality }) {
   const [tw, tt, td] = DESK.top
 
   return (
@@ -58,7 +59,7 @@ export function Desk({ mats }: { mats: DenMaterials }) {
         <MonitorBody key={side} spec={MONITORS[side]} mats={mats} />
       ))}
 
-      <Keyboard mats={mats} />
+      <Keyboard mats={mats} quality={quality} />
       <Mouse mats={mats} />
     </>
   )
@@ -125,9 +126,13 @@ function MonitorBody({ spec, mats }: { spec: MonitorSpec; mats: DenMaterials }) 
  * because the layout is then a `useLayoutEffect` writing matrices — which means
  * the row shape is data (`KEYBOARD.rows`) instead of JSX.
  */
-function Keyboard({ mats }: { mats: DenMaterials }) {
+function Keyboard({ mats, quality }: { mats: DenMaterials; quality: Quality }) {
   const caps = useRef<InstancedMesh>(null)
   const [bw, bh, bd] = KEYBOARD.size
+  // The low tier trades the cap grid for one slab: from the seat the grid is
+  // texture, not silhouette, and 62 instances of dissolve-patched boxes are
+  // the single most expensive decoration on the desk.
+  const merged = quality === 'low'
 
   useLayoutEffect(() => {
     const mesh = caps.current
@@ -147,20 +152,31 @@ function Keyboard({ mats }: { mats: DenMaterials }) {
     })
     mesh.instanceMatrix.needsUpdate = true
     mesh.computeBoundingSphere()
-  }, [bh])
+  }, [bh, merged])
 
   return (
     <group position={KEYBOARD.pos} rotation={[0, KEYBOARD.yaw, 0]}>
       <mesh material={mats.desk}>
         <boxGeometry args={[bw, bh, bd]} />
       </mesh>
-      <instancedMesh
-        ref={caps}
-        material={mats.keycap}
-        args={[undefined, undefined, KEYCAP_COUNT]}
-      >
-        <boxGeometry args={[KEYBOARD.cap, KEYBOARD.cap, KEYBOARD.cap]} />
-      </instancedMesh>
+      {merged ? (
+        <mesh
+          material={mats.keycap}
+          position={[0, bh / 2 + KEYBOARD.cap / 2, 0]}
+        >
+          <boxGeometry
+            args={[12 * KEYBOARD.colGap + KEYBOARD.cap, KEYBOARD.cap, 4 * KEYBOARD.rowGap + KEYBOARD.cap]}
+          />
+        </mesh>
+      ) : (
+        <instancedMesh
+          ref={caps}
+          material={mats.keycap}
+          args={[undefined, undefined, KEYCAP_COUNT]}
+        >
+          <boxGeometry args={[KEYBOARD.cap, KEYBOARD.cap, KEYBOARD.cap]} />
+        </instancedMesh>
+      )}
       {/* Underglow. HDR so bloom catches it — the one bright thing on the desk
           apart from the screens. */}
       <mesh material={mats.underglow} position={[0, -bh * 0.1, bd / 2 + 0.004]}>

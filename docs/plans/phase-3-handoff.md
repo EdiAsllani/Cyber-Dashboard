@@ -1,5 +1,9 @@
 # Phase 3 handoff — paused mid-Task 6
 
+> **Resolved 2026-09-04:** Tasks 6–9 were completed by a second run. Phase 3 is
+> done — see the ROADMAP's Phase 3 entry for the acceptance evidence and the
+> perf caveat. This file stays as the record of the pause, not as work to do.
+
 *Written 2026-09-03 when Edi paused the implementation run. Branch: `feat/phase-3-den` (branched off `feat/phase-2-blackwall-journey`, which is still not merged to `main`). Everything below is pushed to `origin`.*
 
 Read [phase-3-den.md](phase-3-den.md) first — it is still the spec, and nothing in it has been superseded. This file only says **where the work stopped** and **what the next agent needs to know that isn't in the plan**.

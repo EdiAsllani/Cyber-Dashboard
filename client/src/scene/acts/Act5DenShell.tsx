@@ -84,6 +84,8 @@ export function Act5DenShell() {
     // The signs can't take the dissolve patch (troika material), so they fade
     // from the same reveal value instead — and run their flicker lottery.
     signs.tick(reveal.value, t, reducedMotion)
+    // Same story for the rack LEDs' basic material.
+    if (leds.current) (leds.current.material as THREE.Material).opacity = reveal.value
 
     // The one live cable run breathes; everything below only runs while the
     // room is actually on screen.
@@ -134,7 +136,7 @@ export function Act5DenShell() {
 
       <group ref={group} position={[0, 0, ROOM.z]} visible={false}>
         <DenRoom mats={mats} />
-        <Desk mats={mats} />
+        <Desk mats={mats} quality={quality} />
         <Props mats={mats} />
         <MonitorScreens screens={monitors.screens} />
         <Decor mats={mats} quality={quality} leds={leds} />

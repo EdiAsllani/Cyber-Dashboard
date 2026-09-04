@@ -13,6 +13,7 @@ Statuses: ✅ decided · 🟡 proposed (awaiting Edi) · ⬜ later
 | D-07 | Terminal UI: **custom React component**, not xterm.js | 🟡 |
 | D-08 | Database: **PostgreSQL**, not SQLite | ✅ |
 | D-09 | The Blackwall is an **instanced laser lattice**, not a noise plane | ✅ |
+| D-10 | **CameraRig is the only camera writer in every mode** — den poses + damp, no `CameraControls` | ✅ |
 
 ---
 
@@ -56,6 +57,9 @@ xterm.js is a full VT-emulator — overkill and hard to style as a diegetic CP20
 Edi's call (2026-09-03), with a reference image. The original Phase 2 wall was a single plane running domain-warped FBM — it read as *boiling smoke*, and a flat plane can only ever be approached, never entered. The wall is now a volume: ~5.2k instanced dashed beams (crossed quads, additive, per-instance seeds driving dash density, drift, brightness and colour) spread through z ∈ [-16, 30] and x ∈ ±46, with the camera path threading a jittered corridor kept clear of eye-height beams — so the dive genuinely passes *between* lasers. Behind them sits the horizon: an additive quad with a white-hot core, red glow, wide haze and per-column spikes, which act 2 both brightens and thickens until it owns the frame and the pierce flash finishes the whiteout.
 
 Why it is the better call beyond matching the brief: it is *cheaper* (4.07 ms vs the plane's full-screen 11-simplex fragment cost), it gives the journey real parallax and depth cues the plane could not, and the quality ladder becomes a simple instance count (5200/2800/1300) instead of a shader recompile. Files: `scene/materials/laserFieldMaterial.ts`, `scene/materials/horizonMaterial.ts`, `scene/acts/Act1Blackwall.tsx`; `blackwallMaterial.ts` is deleted. The vendored simplex/FBM chunk stays — the act-4 room dissolve still uses it.
+
+## D-10 — One camera writer, in every mode ✅
+Decided in Phase 3 (2026-09-04), deviating from ARCHITECTURE §2.2's suggestion of drei `CameraControls` for the den. Three reasons: two writers fight — `CameraControls` and the rig would each damp the camera toward different targets every frame; nobody asked for orbit — the den wants exactly three poses (seat, two screen zooms) plus pointer parallax, which is a target offset, not a control scheme; and `MathUtils.damp` toward a derived pose already gives the ~0.8s dolly the design wants, arrival measured by distance rather than timed. The den is a pose machine inside the same `useFrame` that drives the journey curves.
 
 ## D-08 — PostgreSQL over SQLite ✅
 Edi's call (2026-09-03). Rationale: we're in compose anyway (a DB container costs one YAML block); real `numeric(14,2)` for money vs SQLite's TEXT/REAL affinity; free `xmin` concurrency token; EF migrations are provider-specific so switching later would mean regenerating them; identical dev/prod story. Using `postgres:18-alpine` (volume mounts at `/var/lib/postgresql` — see research 04 §1).

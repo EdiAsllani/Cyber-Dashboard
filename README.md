@@ -2,7 +2,7 @@
 
 > A scroll-driven 3D dashboard styled after Cyberpunk 2077 — the Blackwall, Arasaka red/black, and in-world terminals. You scroll *through* the Blackwall, land in a netrunner's den, and run your life from the monitors on the desk.
 
-**Status: `PHASE 2 — THE BLACKWALL JOURNEY RUNS`** — boot gate → five-act scroll dive (Blackwall shader → pierce → data tunnel → the room materializing) with a postFX chain, live quality tiers and a reduced-motion path. Next up: the Den itself — real room, monitors, terminal core ([docs/ROADMAP.md](docs/ROADMAP.md)).
+**Status: `PHASE 3 — THE DEN IS LIVE`** — the placeholder shell is now a decorated netrunner den (vents, wall wires, neon quote signs, server rack, desk props) with both monitors idling on `INTERLINKED`; hover a screen, click, and the camera dollies into a CRT terminal (`WALLET.SYS` / `REPO.NET`, mock commands), ESC backs out. Next up: real wallet data behind the terminal ([docs/ROADMAP.md](docs/ROADMAP.md)).
 
 ---
 
@@ -36,7 +36,7 @@ Clicking a monitor dollies the camera into the screen and boots a terminal:
 ## Repo layout
 
 ```
-├── client/                 # Vite + React + R3F SPA        (Phases 1-2)
+├── client/                 # Vite + React + R3F SPA        (Phases 1-3)
 │   └── src/
 │       ├── state/          # zustand journey store (the central contract)
 │       ├── rig/            # scroll pipeline, act math, camera curves

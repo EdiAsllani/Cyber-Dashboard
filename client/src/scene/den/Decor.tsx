@@ -42,6 +42,9 @@ const BRACKETS: Vec3[] = [
   [DUCT_B.x, 0, 3.8],
 ]
 
+/** Radial segments for the duct cylinders and their elbows, per tier. */
+const VENT_SEGMENTS: Record<Quality, number> = { high: 24, medium: 16, low: 10 }
+
 export function Decor({
   mats,
   quality,
@@ -55,7 +58,7 @@ export function Decor({
 
   return (
     <>
-      <Vents mats={mats} segments={seg} />
+      <Vents mats={mats} segments={seg} radial={VENT_SEGMENTS[quality]} />
       <WallWires mats={mats} segments={seg} />
       <ServerRack mats={mats} quality={quality} leds={leds} />
       <Posters mats={mats} />
@@ -63,11 +66,19 @@ export function Decor({
   )
 }
 
-function Vents({ mats, segments }: { mats: DenMaterials; segments: number }) {
+function Vents({
+  mats,
+  segments,
+  radial,
+}: {
+  mats: DenMaterials
+  segments: number
+  radial: number
+}) {
   const { y: ay, z: az, r: ar } = DUCT_A
   const { y: by, x: bx, r: br } = DUCT_B
-  // Straight runs are cylinders and don't care about the tier; the elbows are
-  // tube geometry and do.
+  // Straight runs are cylinders, so the tier only moves their radial count;
+  // the elbows are tube geometry and follow the cable ladder's length count.
   const bendSeg = Math.max(5, Math.round(segments / 3))
   const aLen = DUCT_A.to - DUCT_A.from
   const bLen = DUCT_B.to - DUCT_B.from
@@ -80,7 +91,7 @@ function Vents({ mats, segments }: { mats: DenMaterials; segments: number }) {
         position={[(DUCT_A.from + DUCT_A.to) / 2, ay, az]}
         rotation={[0, 0, Math.PI / 2]}
       >
-        <cylinderGeometry args={[ar, ar, aLen, 14, 1]} />
+        <cylinderGeometry args={[ar, ar, aLen, radial, 1]} />
       </mesh>
       <Bend
         from={[DUCT_A.to, ay, az]}
@@ -92,7 +103,7 @@ function Vents({ mats, segments }: { mats: DenMaterials; segments: number }) {
       />
       {/* A flange where the drop enters the bulkhead. */}
       <mesh material={mats.metal} position={[DUCT_A.to + 0.32, ay - 0.44, az]}>
-        <cylinderGeometry args={[ar + 0.03, ar + 0.03, 0.04, 14]} />
+        <cylinderGeometry args={[ar + 0.03, ar + 0.03, 0.04, radial]} />
       </mesh>
 
       {/* Duct B, along Z, at a different height so the two cross rather than
@@ -102,7 +113,7 @@ function Vents({ mats, segments }: { mats: DenMaterials; segments: number }) {
         position={[bx, by, (DUCT_B.from + DUCT_B.to) / 2]}
         rotation={[Math.PI / 2, 0, 0]}
       >
-        <cylinderGeometry args={[br, br, bLen, 12, 1]} />
+        <cylinderGeometry args={[br, br, bLen, radial, 1]} />
       </mesh>
       <Bend
         from={[bx, by, DUCT_B.from]}
@@ -297,7 +308,11 @@ function ServerRack({
         count={RACK_LEDS[quality]}
       >
         <boxGeometry args={[0.014, 0.014, 0.006]} />
-        <meshBasicMaterial toneMapped={false} fog={false} />
+        {/* Transparent because basic material can't take the dissolve patch:
+            like the troika signs, the studs fade from the shared reveal value
+            (the act writes opacity) instead of burning in — otherwise they'd
+            pop in at p 0.62 while the walls are still dissolving. */}
+        <meshBasicMaterial toneMapped={false} fog={false} transparent opacity={0} />
       </instancedMesh>
     </group>
   )
