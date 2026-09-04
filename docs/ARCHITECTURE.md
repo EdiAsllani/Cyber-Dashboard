@@ -117,6 +117,7 @@ server/
 erDiagram
     USER ||--|| ACCOUNT : owns
     USER ||--o{ BUDGET : tracks
+    USER ||--o{ USER_SETTING : configures
     ACCOUNT ||--o{ TRANSACTION : records
     BUDGET ||--o{ TRANSACTION : "funded by"
 
@@ -135,7 +136,8 @@ erDiagram
         string Alias "account name"
         decimal Balance "numeric(14,2)"
         decimal SalaryAmount
-        datetime SalaryLastClaimedAt
+        datetime SalaryLastClaimedAt "UTC; window-bucketed in user tz"
+        datetime SalaryLastForcedAt "the once-per-window --force slot"
     }
     TRANSACTION {
         guid Id PK
@@ -149,6 +151,7 @@ erDiagram
     BUDGET {
         guid Id PK
         guid UserId FK
+        int Seq "terminal-facing id, unique per user"
         string Name "wanted item"
         decimal TargetAmount
         decimal FundedAmount
@@ -156,9 +159,18 @@ erDiagram
         datetime CreatedAt
         datetime ClosedAt "nullable"
     }
+    USER_SETTING {
+        guid UserId PK_FK
+        string Key PK "registry-validated"
+        string Value
+    }
 ```
 
-**Budget mechanics (escrow):** `budget fund <id> <amt>` moves money `Balance → FundedAmount` (writes a `BudgetFund` transaction). Cancelling refunds the escrow (`BudgetRefund`). `Reached` locks the budget when `FundedAmount ≥ TargetAmount` (celebratory terminal output). Money is conserved and every movement is a `TRANSACTION` row, so `history` is trivially complete.
+**Budget mechanics (escrow):** `budget fund <id> <amt>` moves money `Balance → FundedAmount` (writes a `BudgetFund` transaction), clamping to the remaining target. The fund call that crosses the target auto-locks the budget to `Reached` and returns the celebratory output (D-12: celebration only — no purchase mechanic; the user buys the item in real life). Cancelling refunds the escrow (`BudgetRefund`) and is legal on `Active` *and* `Reached` — that's how escrow is reclaimed after the real-life purchase. Delete only if the budget has no transactions. Money is conserved and every movement is a `TRANSACTION` row, so `history` is trivially complete.
+
+**Salary windows (D-11):** claims are bucketed by *calendar* window in the user's timezone (`X-Timezone` header, IANA name; invalid → UTC) — `wallet.salary.cadence` picks monthly (`yyyy-MM`, default) or weekly (ISO year-week). One normal claim per window; `salary --force` succeeds once more per window (hard cap 2). Both timestamps stored UTC on the account.
+
+**Settings registry (D-13):** only known keys are accepted, each with a type, validation, and default. `wallet.account.alias` and `wallet.salary.amount` write through to `ACCOUNT` columns; `wallet.salary.cadence` and `wallet.history.pagesize` live in `USER_SETTING`. Mutations require the terminal's `sudo` prefix (themed `PERMISSION DENIED` without it).
 
 Concurrency: balance updates go through one transactional service method; Postgres `xmin` as EF concurrency token as a belt-and-suspenders.
 
@@ -172,21 +184,27 @@ Concurrency: balance updates go through one transactional service method; Postgr
 | `GET /api/auth/github/callback` | complete OAuth, set session cookie, bounce to SPA |
 | `POST /api/auth/logout` | kill session |
 | `GET /api/me` | session user + account summary |
-| `GET /api/wallet` | balance, alias, provider, salary status |
+| `GET /api/wallet` | balance, alias, provider, salary status (window, claim/force availability) |
 | `POST /api/wallet/pay` | `{ amount, memo? }` → debit |
 | `POST /api/wallet/income` | `{ amount, memo? }` → credit |
-| `POST /api/wallet/salary/claim` | claim salary if cooldown elapsed |
-| `GET /api/wallet/transactions?take=10` | recent history |
+| `POST /api/wallet/salary/claim` | `{ force? }` — per D-11 window rules |
+| `GET /api/wallet/transactions?take=&kind=&budget=` | history, newest first, optional filters; default take from `wallet.history.pagesize` |
+| `GET /api/wallet/stats` | current-window income/spend/net/top expense + escrowed + all-time |
 | `GET /api/budgets` | list budgets + status |
 | `POST /api/budgets` | `{ name, target }` |
-| `POST /api/budgets/{id}/fund` | `{ amount }` escrow from balance |
-| `POST /api/budgets/{id}/cancel` | refund escrow, close |
-| `DELETE /api/budgets/{id}` | remove (only if never funded) |
+| `POST /api/budgets/{seq}/fund` | `{ amount }` escrow from balance; clamps; may flip to Reached |
+| `POST /api/budgets/{seq}/cancel` | refund escrow, close (Active or Reached) |
+| `DELETE /api/budgets/{seq}` | remove (only if it has no transactions) |
+| `GET /api/config` | settings registry: keys, values, defaults |
+| `PUT /api/config/{key}` | `{ value }` — validated against the registry |
+| `DELETE /api/config/{key}` | reset key to default |
 | `GET /api/repos` | user's repos (name, stars, updated) |
 | `GET /api/repos/{owner}/{name}/summary` | latest commit, total commits, open PRs, total PRs |
 | `GET /api/repos/rate` | remaining GitHub rate budget (flavor + debugging) |
 
-All wallet/budget/repo routes require the session cookie; unauthenticated calls get `401` which the terminal renders as `ACCESS DENIED — run: login`.
+All wallet/budget/repo routes require the session cookie; unauthenticated calls get `401` which the terminal renders as `ACCESS DENIED — run: login`. *(Until Phase 5 auth lands, wallet/budget/config routes resolve the seeded dev user.)*
+
+Wallet errors are 4xx JSON `{ code, message, meta? }` — the server owns the invariant, the client owns the drama (D-03): codes like `OVERDRAFT`, `SALARY_ALREADY_CLAIMED`, `SALARY_FORCE_EXHAUSTED` map to themed terminal output client-side. The client sends `X-Timezone` (IANA) on every request for D-11 window math.
 
 ---
 
@@ -196,16 +214,20 @@ All wallet/budget/repo routes require the session cookie; unauthenticated calls 
 | Command | Effect |
 |---|---|
 | `help`, `clear`, `whoami` | utility |
-| `balance` | balance, alias, provider |
+| `balance` | balance, alias, provider, salary readiness |
 | `pay <amount> [memo…]` | debit; refuses overdraft with themed error |
 | `income <amount> [memo…]` | credit (freelance gig flavor) |
-| `salary` | claim salary (shows cooldown if not ready) |
-| `history [n]` | last n (default 10) transactions, table |
-| `budget` | list budgets: name, funded/target, %, status |
-| `budget add <name> <target>` | create goal |
-| `budget fund <id> <amount>` | escrow money into goal |
-| `budget cancel <id>` | cancel + refund |
-| `budget done <id>` | mark Reached manually only if funded ≥ target |
+| `salary [--force]` | claim per window (D-11); refusal hints at `--force`, force works once |
+| `history [n] [--kind k] [--budget id]` | last n transactions, table (default n from config) |
+| `stats` | current-window income/spend/net + escrow + all-time |
+| `budget` | list budgets: seq, name, funded/target, `[████──] %` bar, status |
+| `budget add <name…> <target>` | create goal (last token is the target) |
+| `budget fund <id> <amount>` | escrow into goal; clamps; crossing the target celebrates + locks Reached |
+| `budget cancel <id>` | cancel + refund (Active or Reached) |
+| `budget rm <id>` | delete, only if never used |
+| `config list` / `config get <key>` | read settings (no sudo) |
+| `sudo config set <key> <value>` | mutate a registry key; without `sudo` → `PERMISSION DENIED` |
+| `sudo config reset <key>` | back to default |
 
 ### REPO.NET
 | Command | Effect |

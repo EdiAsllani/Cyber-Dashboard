@@ -24,9 +24,12 @@ Edi's art direction (2026-09-03, detailed in the plan): closer seat pose; ceilin
 
 *Perf caveat:* den frame measured 6.3 ms best / ~6.8 typical against the ≤ 6 ms target at 1265×720 dpr 1 — but on a machine simultaneously running compose watch, the in-app browser and the agent session, with run-to-run noise of ±1 ms (the Task-3 baseline of 5.1 ms was taken the same way). Structural budgets (draw calls, program stability) pass with margin; re-measure at idle before treating this as a regression. Headroom if needed: the three troika signs each cost a fill+outline transparent pass, and the duct cylinders can drop to the medium radial count without reading differently.
 
-## Phase 4 — WALLET.SYS
+## Phase 4 — WALLET.SYS — plan: [docs/plans/phase-4-wallet.md](plans/phase-4-wallet.md)
 Wallet + budgets backend (entities, invariants, endpoints per ARCHITECTURE §5–6), seeding on first login (dev: seeded local user until Phase 5 auth lands), terminal commands wired to typed API client, themed errors (overdraft, cooldown), history table rendering.
-**Accept:** pay/income/salary/history/budget lifecycle all work end-to-end and survive container restarts (data in Postgres volume); overdraft and double-salary-claim correctly refused server-side.
+
+**Brainstorm outcomes (2026-09-04, with Edi — see D-11…D-14):** salary is claimable once per *calendar* window in the user's timezone (monthly default), with a one-shot `salary --force` escape hatch per window (2 claims max); budget `Reached` is **celebration only** — auto-locked by the crossing fund call, escrow stays, the user buys the item in real life and cancels to reclaim (no purchase mechanic, `budget done` dropped); a **config command family** lands this phase (`config list/get`, `sudo config set/reset` over a server-side validated registry: `wallet.salary.cadence`, `wallet.salary.amount`, `wallet.account.alias`, `wallet.history.pagesize`) — mutations without `sudo` get a themed `PERMISSION DENIED`; extras in scope: `stats` command, `history` filters, ASCII budget progress bars, consistent `€$` formatting. GitHub connection (Phase 5) will use the OAuth *device flow* from the terminal (D-14).
+
+**Accept:** pay/income/salary/history/stats/budget/config lifecycle all work end-to-end and survive container restarts (data in Postgres volume); overdraft, double-salary-claim, and double-force correctly refused server-side; salary window rolls over per user-tz calendar; budget auto-Reached + refund-from-Reached + overfund clamp verified; config validation (unknown key, bad value, missing sudo) each themed distinctly.
 
 ## Phase 5 — REPO.NET + auth
 GitHub OAuth (cookie BFF), user upsert + wallet claim/merge of seed account, Octokit-backed repo endpoints with 60s cache + ETags, REPO.NET commands (repos, repo, latest, commits, prs, rate), 401 → `ACCESS DENIED` terminal flow.

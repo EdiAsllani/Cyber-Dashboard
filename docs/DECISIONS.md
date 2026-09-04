@@ -14,6 +14,10 @@ Statuses: ✅ decided · 🟡 proposed (awaiting Edi) · ⬜ later
 | D-08 | Database: **PostgreSQL**, not SQLite | ✅ |
 | D-09 | The Blackwall is an **instanced laser lattice**, not a noise plane | ✅ |
 | D-10 | **CameraRig is the only camera writer in every mode** — den poses + damp, no `CameraControls` | ✅ |
+| D-11 | Salary: **calendar windows in the user's timezone** + one `--force` re-take per window | ✅ |
+| D-12 | Budget `Reached` is **celebration only** — no purchase mechanic, escrow reclaimed via cancel | ✅ |
+| D-13 | **Config registry**: known keys, server-validated, `sudo`-gated terminal mutations | ✅ |
+| D-14 | GitHub connect (Phase 5) via **OAuth device flow** from the terminal | ✅ |
 
 ---
 
@@ -60,6 +64,18 @@ Why it is the better call beyond matching the brief: it is *cheaper* (4.07 ms vs
 
 ## D-10 — One camera writer, in every mode ✅
 Decided in Phase 3 (2026-09-04), deviating from ARCHITECTURE §2.2's suggestion of drei `CameraControls` for the den. Three reasons: two writers fight — `CameraControls` and the rig would each damp the camera toward different targets every frame; nobody asked for orbit — the den wants exactly three poses (seat, two screen zooms) plus pointer parallax, which is a target offset, not a control scheme; and `MathUtils.damp` toward a derived pose already gives the ~0.8s dolly the design wants, arrival measured by distance rather than timed. The den is a pose machine inside the same `useFrame` that drives the journey curves.
+
+## D-11 — Salary as calendar windows + one force ✅
+Edi's call (2026-09-04). Not a rolling cooldown: the claim window is the user's *actual calendar month* (default) or ISO week, evaluated in the user's timezone — claim Sep 30, claim again Oct 1, both work. One normal claim per window; a second attempt is refused with a themed warning *and a hint* pointing at `salary --force`, which succeeds exactly once per window. Hard cap 2 claims/window. Cadence is a config key (`wallet.salary.cadence`), so the schema stores two UTC timestamps (`SalaryLastClaimedAt`, `SalaryLastForcedAt`) and buckets them at read time; the client sends `X-Timezone` (IANA) on every request.
+
+## D-12 — Reached is celebration only ✅
+Edi's call (2026-09-04), rejecting the "Reached consumes the escrow as a purchase" alternative: a purchase mechanic changes the app's purpose and drags complexity into everything around it (items, ownership, sinks). Instead the fund call that crosses the target auto-locks the budget to `Reached` and returns celebratory output — a *notification* to go buy the thing in real life. Escrow stays put, money stays conserved; `budget cancel` (legal on Active *and* Reached) reclaims it afterward. The manual `budget done` command is dropped — auto-lock on fund supersedes it.
+
+## D-13 — Config registry with a sudo gate ✅
+Edi's call (2026-09-04): the terminal gets a config family — settings are part of the fiction, not a settings page. Server side it's a *registry*, not a free-form KV store: only known, namespaced keys (`wallet.*`, later `repo.*`), each typed, validated, defaulted; some write through to real columns (alias, salary amount), others to a `USER_SETTING` row (cadence, pagesize). Terminal mutations require the `sudo` prefix — purely theatrical, but it splits reads from writes: `config set` alone returns `PERMISSION DENIED — you are not root. try: sudo config set …`. Phase 4 ships `wallet.salary.cadence`, `wallet.salary.amount`, `wallet.account.alias`, `wallet.history.pagesize`.
+
+## D-14 — GitHub device flow ✅
+Edi's call (2026-09-04), superseding the redirect/popup assumption in §8/D-02's flow description (the OAuth App + scopes decision stands). Connecting GitHub can never be a `config set` — OAuth never lets a credential touch our app — so the terminal initiates the *device flow*: print `ENTER CODE XXXX-XXXX AT github.com/login/device`, poll until approved, then `UPLINK ESTABLISHED`. The whole ceremony stays inside the CRT. PAT paste was vetoed (trains users to paste secrets). Repo *selection* (which repo the dashboard tracks) becomes plain `repo.*` config keys in Phase 5. Builds in Phase 5; recorded now so §8 gets reworked against it.
 
 ## D-08 — PostgreSQL over SQLite ✅
 Edi's call (2026-09-03). Rationale: we're in compose anyway (a DB container costs one YAML block); real `numeric(14,2)` for money vs SQLite's TEXT/REAL affinity; free `xmin` concurrency token; EF migrations are provider-specific so switching later would mean regenerating them; identical dev/prod story. Using `postgres:18-alpine` (volume mounts at `/var/lib/postgresql` — see research 04 §1).
