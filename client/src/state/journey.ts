@@ -26,6 +26,8 @@ export interface JourneyState {
   focused: MonitorSide | null
   /** Set by the rig once the dolly has actually landed — the overlay's cue. */
   arrived: boolean
+  /** Which screen the pointer is over (den mode only) — drives the HUD hint. */
+  hovered: MonitorSide | null
   jackIn: () => void
   enterDen: () => void
   exitDen: () => void
@@ -48,14 +50,21 @@ export const useJourney = create<JourneyState>((set) => ({
   reducedMotion: initialReducedMotion(),
   focused: null,
   arrived: false,
+  hovered: null,
   jackIn: () => set((s) => (s.mode === 'boot' ? { mode: 'journey' } : s)),
   enterDen: () => set((s) => (s.mode === 'journey' ? { mode: 'den' } : s)),
   // Guarded even though the terminal's scroll lock already makes it
   // unreachable from there: the scroll trigger calls this blind on every
   // upward frame, and a stray exit would strand the overlay over the journey.
-  exitDen: () => set((s) => (s.mode === 'den' ? { mode: 'journey', focused: null } : s)),
+  // `hovered` is cleared too — a scroll-out mid-hover never fires pointerOut.
+  exitDen: () =>
+    set((s) => (s.mode === 'den' ? { mode: 'journey', focused: null, hovered: null } : s)),
   focusMonitor: (side) =>
-    set((s) => (s.mode === 'den' ? { mode: 'terminal', focused: side, arrived: false } : s)),
+    set((s) =>
+      s.mode === 'den'
+        ? { mode: 'terminal', focused: side, arrived: false, hovered: null }
+        : s,
+    ),
   blurMonitor: () =>
     set((s) => (s.mode === 'terminal' ? { mode: 'den', focused: null, arrived: false } : s)),
   setQuality: (quality) => set((s) => (s.quality === quality ? s : { quality })),

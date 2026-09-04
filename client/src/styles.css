@@ -186,6 +186,164 @@ body,
   50% { opacity: 0.9; }
 }
 
+/* ─── Terminal overlay (CRT frame) ─────────────────────────────────────── */
+
+/* Between the HUD (3) and the boot screen (20). Fades in only once the rig
+   reports `arrived`; base state is invisible AND inert, so a mid-dolly click
+   can't land on the frame before it exists visually. */
+.term {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 3vh 2vw;
+  background: radial-gradient(ellipse at center, rgba(5, 5, 5, 0.55) 0%, rgba(5, 5, 5, 0.92) 100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+
+.term--on {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 250ms ease;
+}
+
+.term__bezel {
+  position: relative;
+  width: min(92vw, 1100px);
+  aspect-ratio: 4 / 3.1;
+  max-height: 92svh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--blood);
+  border-radius: 14px;
+  background: #070707;
+  box-shadow:
+    inset 0 0 3.5rem rgba(0, 0, 0, 0.85),
+    inset 0 0 0.5rem rgba(255, 0, 60, 0.12),
+    0 0 2.5rem rgba(255, 0, 60, 0.1);
+  overflow: hidden;
+  font-family: 'Share Tech Mono', monospace;
+}
+
+/* Scanlines over everything inside the bezel, including the header. */
+.term__bezel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    rgba(0, 0, 0, 0.22) 3px
+  );
+}
+
+/* Slow phosphor flicker. Killed under reduced motion below. */
+.term__bezel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.015);
+  animation: term-phosphor 4.1s steps(12) infinite;
+}
+
+@keyframes term-phosphor {
+  0%, 100% { opacity: 0.4; }
+  31% { opacity: 0.9; }
+  32% { opacity: 0.2; }
+  70% { opacity: 0.7; }
+}
+
+.term__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.7rem 1.1rem;
+  border-bottom: 1px solid rgba(136, 4, 37, 0.6);
+  color: var(--hot-red);
+  font-size: 0.8rem;
+  letter-spacing: 0.18em;
+  text-shadow: 0 0 6px currentColor;
+}
+
+.term__disconnect {
+  border: 1px solid var(--blood);
+  background: transparent;
+  padding: 0.25rem 0.7rem;
+  color: var(--hot-red);
+  font: inherit;
+  letter-spacing: 0.18em;
+  cursor: pointer;
+  text-shadow: 0 0 6px currentColor;
+}
+
+.term__disconnect:hover {
+  background: var(--arasaka-red);
+  color: var(--void);
+  text-shadow: none;
+}
+
+.term__viewport {
+  flex: 1;
+  min-height: 0;
+  padding: 1rem 1.2rem;
+  overflow-y: auto;
+  color: var(--ghost);
+  font-size: clamp(0.7rem, 1.7vw, 0.95rem);
+  line-height: 1.55;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 6px rgba(232, 232, 232, 0.35);
+}
+
+.term__bootline {
+  color: var(--hot-red);
+  text-shadow: 0 0 6px currentColor;
+}
+
+.term__cursor {
+  display: inline-block;
+  width: 0.55em;
+  height: 1em;
+  margin-left: 0.35em;
+  vertical-align: text-bottom;
+  background: var(--hot-red);
+  animation: term-blink 1.06s steps(1) infinite;
+}
+
+@keyframes term-blink {
+  50% { opacity: 0; }
+}
+
+/* Hover affordance for the den's screens: bottom center, own element so the
+   HUD's den-dim can't wash it out. */
+.hud__access {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  z-index: 3;
+  translate: -50% 0;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.26em;
+  color: var(--hot-red);
+  text-shadow: 0 0 8px currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+
+.hud__access--on {
+  opacity: 1;
+}
+
 /* ─── Boot screen ──────────────────────────────────────────────────────── */
 
 .boot {
@@ -298,6 +456,7 @@ body,
   .hud__hint span,
   .boot__jack,
   .boot__line,
+  .term__bezel::after,
   .hud__title--glitch::before,
   .hud__title--glitch::after {
     animation: none;
@@ -312,6 +471,7 @@ body,
 :root[data-reduced-motion='true'] .hud__hint span,
 :root[data-reduced-motion='true'] .boot__jack,
 :root[data-reduced-motion='true'] .boot__line,
+:root[data-reduced-motion='true'] .term__bezel::after,
 :root[data-reduced-motion='true'] .hud__title--glitch::before,
 :root[data-reduced-motion='true'] .hud__title--glitch::after {
   animation: none;

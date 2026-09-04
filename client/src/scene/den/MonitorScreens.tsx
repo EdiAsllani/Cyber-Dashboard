@@ -3,8 +3,9 @@ import * as THREE from 'three'
 import { MONITORS, MONITOR_SIDES, SCREEN_PROUD } from './constants'
 import { createDissolveMaterial } from '../materials/dissolveMaterial'
 import { createScreenFeed, type ScreenFeed } from './screenFeed'
-import type { MonitorSide, Quality } from '../../state/journey'
+import { useJourney, type MonitorSide, type Quality } from '../../state/journey'
 import { debug } from '../../ui/debugFlag'
+import type { ThreeEvent } from '@react-three/fiber'
 
 /**
  * The two screens: geometry, the canvas feed behind them, and (Task 7) the
@@ -19,8 +20,11 @@ import { debug } from '../../ui/debugFlag'
 /** Repaint ceiling per tier. Below this the feed just holds its last frame. */
 const FEED_HZ: Record<Quality, number> = { high: 5, medium: 4, low: 2 }
 
-/** Idle emissive. Task 7's hover adds `userData.boost` on top. */
+/** Idle emissive. Hover adds `userData.boost` on top. */
 export const BASE_EMISSIVE = 1.15
+
+/** Hover glow — enough to read as "lit up", not enough to push logs into bloom. */
+const HOVER_BOOST = 0.35
 
 export interface MonitorScreen {
   side: MonitorSide
@@ -111,6 +115,31 @@ export function MonitorScreens({ screens }: { screens: MonitorScreen[] }) {
     <>
       {screens.map(({ side, material }) => {
         const { screen, center, yaw } = MONITORS[side]
+        // Pointer events fire during the flythrough too, so every handler
+        // gates on den mode. The out-handler is the one exception: it only
+        // ever *resets*, and a hover that started legitimately must be able
+        // to end after a mode flip (scroll-out mid-hover never re-fires it,
+        // which is why exitDen clears `hovered` as well).
+        const over = (e: ThreeEvent<PointerEvent>) => {
+          if (useJourney.getState().mode !== 'den') return
+          e.stopPropagation()
+          material.userData.boost = HOVER_BOOST
+          document.body.style.cursor = 'pointer'
+          useJourney.setState({ hovered: side })
+        }
+        const out = (e: ThreeEvent<PointerEvent>) => {
+          e.stopPropagation()
+          material.userData.boost = 0
+          document.body.style.cursor = ''
+          if (useJourney.getState().hovered === side) useJourney.setState({ hovered: null })
+        }
+        const click = (e: ThreeEvent<MouseEvent>) => {
+          if (useJourney.getState().mode !== 'den') return
+          e.stopPropagation()
+          material.userData.boost = 0
+          document.body.style.cursor = ''
+          useJourney.getState().focusMonitor(side)
+        }
         return (
           // The offset has to be applied *inside* the yawed group, not added
           // to the centre in den space: the screens are toed in, so a
@@ -123,6 +152,9 @@ export function MonitorScreens({ screens }: { screens: MonitorScreen[] }) {
               // The two screens are the only hittable things in the den;
               // `useSceneryRaycast` reads this flag and leaves them alone.
               userData={{ interactive: true }}
+              onPointerOver={over}
+              onPointerOut={out}
+              onClick={click}
             >
               <planeGeometry args={[screen[0], screen[1]]} />
             </mesh>

@@ -10,6 +10,7 @@ import { QualityTiers } from './fx/QualityTiers'
 import { BootScreen } from './ui/BootScreen'
 import { Hud } from './ui/Hud'
 import { PierceFlash } from './ui/PierceFlash'
+import { TerminalOverlay } from './ui/TerminalOverlay'
 import { DebugBridge } from './ui/DebugBridge'
 import { DebugPanel, DebugPerf } from './ui/DebugPanel'
 import { debug } from './ui/debugFlag'
@@ -48,6 +49,7 @@ export default function App() {
 
       <PierceFlash />
       <Hud />
+      <TerminalOverlay />
       {debug && <DebugPanel />}
 
       {/* Provides the journey's scroll length. Holds no content. Reduced

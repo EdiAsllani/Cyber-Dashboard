@@ -37,6 +37,7 @@ function useActName(): string {
 export function Hud() {
   useRenderProbe('Hud')
   const mode = useJourney((s) => s.mode)
+  const hovered = useJourney((s) => s.hovered)
   const title = useActName()
   const [status, setStatus] = useState('LINKING…')
   const [dim, setDim] = useState(false)
@@ -112,6 +113,13 @@ export function Hud() {
           away. */}
       <div className={`hud__hint${hidden ? ' hud--hidden' : ''}`} ref={hint} aria-hidden>
         <span>SCROLL TO BREACH ▼</span>
+      </div>
+
+      {/* Hover affordance for the screens. Its own element, not part of the
+          main HUD block — that one dims to 0.2 once the den settles, and a
+          dimmed call-to-action is no affordance at all. */}
+      <div className={`hud__access${hovered && mode === 'den' ? ' hud__access--on' : ''}`}>
+        ACCESS TERMINAL // {(hovered ?? 'left').toUpperCase()}
       </div>
     </>
   )
