@@ -64,6 +64,17 @@ docker compose up --build --watch
 - API: http://localhost:5210
 - Postgres: localhost:5432
 
+> **Always start it with `--watch`, and rebuild after pulling.** Both `dev`
+> images bake a snapshot of the source at build time (`COPY . .`); compose
+> watch then syncs your edits into the *running container*, not into the image.
+> So a plain `docker compose up` (no `--watch`) — or anything that **recreates**
+> a container, which `up` does whenever the config or image changes — drops
+> those synced files and silently serves whatever source the image was built
+> with. The symptom is an app that runs but is mysteriously old: monitors that
+> don't respond to clicks, wallet commands 404ing. The fix is always
+> `docker compose up --build --watch`. Your data is safe either way — Postgres
+> lives in the `pgdata` volume, which container recreation doesn't touch.
+
 Click **`[ JACK IN ]`** on the boot screen, then scroll. Scrolling does nothing
 until you do — the gate exists to force a user gesture before the page takes
 over the scroll (and, from Phase 6, to unlock audio).
