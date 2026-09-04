@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useJourney, type MonitorSide } from '../state/journey'
+import { Terminal } from '../terminal/Terminal'
+import { wallet } from '../terminal/skins/wallet'
+import { repo } from '../terminal/skins/repo'
 import { useRenderProbe } from './renderProbe'
+import type { TerminalSkin } from '../terminal/types'
 
 /**
  * The fullscreen CRT frame that owns the screen in terminal mode.
@@ -17,10 +21,7 @@ import { useRenderProbe } from './renderProbe'
  * terminal mode, so the listener cannot leak into the journey.
  */
 
-const HEADERS: Record<MonitorSide, string> = {
-  left: 'ARASAKA TRUST // WALLET.SYS',
-  right: 'NIGHT CITY NET // REPO.NET',
-}
+const SKINS: Record<MonitorSide, TerminalSkin> = { left: wallet, right: repo }
 
 export function TerminalOverlay() {
   useRenderProbe('TerminalOverlay')
@@ -49,21 +50,20 @@ function Frame() {
     return () => window.removeEventListener('keydown', onKey)
   }, [disconnect])
 
+  const skin = SKINS[focused]
+
   return (
     <div className={`term${arrived && !leaving ? ' term--on' : ''}`}>
       <div className="term__bezel">
         <header className="term__header">
-          <span>{HEADERS[focused]}</span>
+          <span>{skin.title}</span>
           <button className="term__disconnect" onClick={disconnect}>
             [ DISCONNECT ]
           </button>
         </header>
-        <div className="term__viewport">
-          <p className="term__bootline">
-            LINK ESTABLISHED // {focused.toUpperCase()} CONSOLE
-            <span className="term__cursor" />
-          </p>
-        </div>
+        {/* Mounted on arrival, so the banner types in front of the user
+            rather than behind an invisible frame mid-dolly. */}
+        {arrived && <Terminal skin={skin} />}
       </div>
     </div>
   )

@@ -303,9 +303,70 @@ body,
   text-shadow: 0 0 6px rgba(232, 232, 232, 0.35);
 }
 
-.term__bootline {
+/* Scrollback lines. `pre-wrap` matters twice over: help's column alignment
+   is spaces, and echoed input should wrap rather than scroll sideways. */
+.term__line {
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 1.55em;
+}
+
+.term__line--dim {
+  opacity: 0.62;
+}
+
+.term__line--warn {
+  color: var(--hot-red);
+}
+
+.term__line--echo {
+  color: var(--ghost);
+  opacity: 0.85;
+}
+
+.term__line--err {
+  color: var(--hot-red);
+}
+
+.term__promptname {
   color: var(--hot-red);
   text-shadow: 0 0 6px currentColor;
+}
+
+/* The real input — focusable and IME-capable but visually absent; its value
+   is drawn into the styled prompt line instead. */
+.term__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+}
+
+/* Unknown command: the HUD's glitch treatment, re-anchored for a flow line. */
+.term__errglitch {
+  position: relative;
+}
+
+.term__errglitch::before,
+.term__errglitch::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  clip-path: inset(0 0 100% 0);
+}
+
+.term__errglitch::before {
+  color: var(--netrunner);
+  animation: hud-slice-a 320ms steps(3, end) 1;
+}
+
+.term__errglitch::after {
+  color: var(--ghost);
+  animation: hud-slice-b 320ms steps(3, end) 1;
 }
 
 .term__cursor {
@@ -457,6 +518,8 @@ body,
   .boot__jack,
   .boot__line,
   .term__bezel::after,
+  .term__errglitch::before,
+  .term__errglitch::after,
   .hud__title--glitch::before,
   .hud__title--glitch::after {
     animation: none;
@@ -472,6 +535,8 @@ body,
 :root[data-reduced-motion='true'] .boot__jack,
 :root[data-reduced-motion='true'] .boot__line,
 :root[data-reduced-motion='true'] .term__bezel::after,
+:root[data-reduced-motion='true'] .term__errglitch::before,
+:root[data-reduced-motion='true'] .term__errglitch::after,
 :root[data-reduced-motion='true'] .hud__title--glitch::before,
 :root[data-reduced-motion='true'] .hud__title--glitch::after {
   animation: none;
